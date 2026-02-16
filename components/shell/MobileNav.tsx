@@ -23,7 +23,14 @@ function NavItem({
   );
 }
 
-export default function MobileNav({ userEmail }: { userEmail: string }) {
+export default function MobileNav({
+  userEmail,
+  role,
+}: {
+  userEmail: string;
+  role: "ADMIN" | "SECRETARY" | "STAFF" | null;
+}) {
+
   const [open, setOpen] = useState(false);
 
   return (
