@@ -89,13 +89,22 @@ export default function MobileNav({
             </div>
 
             <nav className="mt-6 space-y-1">
-              <NavItem href="/dashboard" label="Dashboard" onClick={() => setOpen(false)} />
-              <NavItem href="/letters" label="Letters" onClick={() => setOpen(false)} />
-            </nav>
+  <NavItem href="/dashboard" label="Dashboard" onClick={() => setOpen(false)} />
+  <NavItem href="/letters" label="Letters" onClick={() => setOpen(false)} />
+
+  {(role === "ADMIN" || role === "SECRETARY") ? (
+    <NavItem href="/letters/new" label="New Letter" onClick={() => setOpen(false)} />
+  ) : null}
+
+  {role === "ADMIN" ? (
+    <NavItem href="/admin" label="Manage Records" onClick={() => setOpen(false)} />
+  ) : null}
+</nav>
 
             <div className="mt-6 rounded-2xl bg-neutral-50 p-3 ring-1 ring-neutral-200/60">
               <p className="text-xs text-neutral-500">Signed in</p>
               <p className="mt-1 text-sm font-medium truncate">{userEmail}</p>
+              <p className="mt-1 text-xs text-neutral-500">Role: {role ?? "STAFF"}</p>
             </div>
 
             <form action="/auth/logout" method="post" className="mt-4">

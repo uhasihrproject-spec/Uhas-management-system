@@ -77,17 +77,16 @@ export default function AppShell({
 
             {/* Nav */}
             <div className="mt-6 space-y-1">
-              <NavItem href="/letters" label="Letters" />
-              {canManageLetters ? <NavItem href="/letters/new" label="New Letter" /> : null}
-              {isAdmin ? <NavItem href="/admin" label="Manage Records" /> : null}
-            </div>
+            <NavItem href="/dashboard" label="Dashboard" />
+            <NavItem href="/letters" label="Letters" />
 
-            {/* Footer */}
-            <div className="mt-6 rounded-2xl bg-emerald-50/40 p-3 ring-1 ring-emerald-100">
-              <p className="text-xs text-emerald-900 font-semibold">Quick tip</p>
-              <p className="mt-1 text-xs text-neutral-700">
-                Use search + filters to find letters fast.
-              </p>
+            {canManageLetters ? (
+                <NavItem href="/letters/new" label="New Letter" />
+            ) : null}
+
+            {isAdmin ? (
+                <NavItem href="/admin" label="Manage Records" />
+            ) : null}
             </div>
           </div>
         </aside>
