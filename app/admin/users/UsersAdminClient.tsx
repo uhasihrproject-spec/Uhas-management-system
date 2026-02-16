@@ -19,14 +19,14 @@ function AddUserForm({
   onCreated,
   onError,
 }: {
-  onCreated: (u: any) => void;
+  onCreated: (u: UserRow) => void;
   onError: (m: string) => void;
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [department, setDepartment] = useState("");
-  const [role, setRole] = useState<"STAFF" | "SECRETARY" | "ADMIN">("STAFF");
+  const [role, setRole] = useState<Role>("STAFF");
   const [creating, setCreating] = useState(false);
   const [ok, setOk] = useState("");
 
@@ -52,6 +52,7 @@ function AddUserForm({
       if (!res.ok) throw new Error(json?.error || "Failed to create");
 
       setOk("Account created successfully ✅");
+
       onCreated({
         id: json.userId,
         full_name: fullName || null,
@@ -73,44 +74,22 @@ function AddUserForm({
   }
 
   return (
-    <div className="mt-4 rounded-3xl bg-neutral-50 p-4 ring-1 ring-neutral-200/70">
+    <div className="rounded-3xl bg-neutral-50 p-4 ring-1 ring-neutral-200/70">
       <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-        <input
-          className={inputCls}
-          placeholder="Full name"
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-        />
-        <input
-          className={inputCls}
-          placeholder="Department"
-          value={department}
-          onChange={(e) => setDepartment(e.target.value)}
-        />
-        <select className={inputCls} value={role} onChange={(e) => setRole(e.target.value as any)}>
+        <input className={inputCls} placeholder="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+        <input className={inputCls} placeholder="Department" value={department} onChange={(e) => setDepartment(e.target.value)} />
+        <select className={inputCls} value={role} onChange={(e) => setRole(e.target.value as Role)}>
           <option value="STAFF">STAFF</option>
           <option value="SECRETARY">SECRETARY</option>
           <option value="ADMIN">ADMIN</option>
         </select>
-        <input
-          className={inputCls}
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          type="email"
-        />
-        <input
-          className={inputCls}
-          placeholder="Temporary password (min 8 chars)"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          type="text"
-        />
+        <input className={inputCls} placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} type="email" />
+        <input className={inputCls} placeholder="Temporary password (min 8 chars)" value={password} onChange={(e) => setPassword(e.target.value)} type="text" />
       </div>
 
       <div className="mt-3 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
         <p className="text-xs text-neutral-600">
-          Tip: give them a temporary password and tell them to change it later.
+          Create the account, then staff can log in immediately. (Tell them to change password later.)
         </p>
 
         <button
@@ -132,11 +111,10 @@ function AddUserForm({
   );
 }
 
-
 export default function UsersAdminClient({ initialUsers }: { initialUsers: UserRow[] }) {
   const [users, setUsers] = useState<UserRow[]>(initialUsers);
   const [q, setQ] = useState("");
-  const [savingId, setSavingId] = useState<string>("");
+  const [savingId, setSavingId] = useState("");
   const [err, setErr] = useState("");
 
   const shown = useMemo(() => {
@@ -145,7 +123,12 @@ export default function UsersAdminClient({ initialUsers }: { initialUsers: UserR
     return users.filter((u) => {
       const name = (u.full_name || "").toLowerCase();
       const dept = (u.department || "").toLowerCase();
-      return u.id.toLowerCase().includes(s) || name.includes(s) || dept.includes(s) || u.role.toLowerCase().includes(s);
+      return (
+        u.id.toLowerCase().includes(s) ||
+        name.includes(s) ||
+        dept.includes(s) ||
+        u.role.toLowerCase().includes(s)
+      );
     });
   }, [users, q]);
 
@@ -167,9 +150,6 @@ export default function UsersAdminClient({ initialUsers }: { initialUsers: UserR
 
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || "Failed to save");
-
-      // small success feel (quick + clear)
-      setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x } : x)));
     } catch (e: any) {
       setErr(e.message || "Failed to save");
     } finally {
@@ -179,20 +159,30 @@ export default function UsersAdminClient({ initialUsers }: { initialUsers: UserR
 
   return (
     <div className="rounded-3xl bg-white ring-1 ring-neutral-200/70 overflow-hidden">
+      {/* Top controls */}
       <div className="p-4 sm:p-5 border-b border-neutral-200/70">
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-xl">
-            <div className="text-sm font-semibold text-neutral-900">Staff list</div>
+            <div className="text-sm font-semibold text-neutral-900">Add staff account</div>
             <div className="mt-1 text-sm text-neutral-600">
-              Search a name/department, then set role & save.
+              Create a login, then manage role/department below.
             </div>
           </div>
 
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search users…"
-            className="w-full sm:w-[320px] rounded-2xl border border-neutral-200 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-600/15"
+          <div className="w-full lg:w-[320px]">
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search users…"
+              className="w-full rounded-2xl border border-neutral-200 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-600/15"
+            />
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <AddUserForm
+            onCreated={(newUser) => setUsers((prev) => [newUser, ...prev])}
+            onError={(m) => setErr(m)}
           />
         </div>
 
@@ -201,37 +191,15 @@ export default function UsersAdminClient({ initialUsers }: { initialUsers: UserR
             <p className="text-sm text-red-700">{err}</p>
           </div>
         ) : null}
+
+        <div className="mt-4 text-sm text-neutral-600">
+          Total users: <span className="font-medium text-neutral-900">{users.length}</span>
+        </div>
       </div>
 
+      {/* Table */}
       <div className="overflow-auto">
-        <div className="p-4 sm:p-5 border-b border-neutral-200/70">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                <div className="text-sm font-semibold text-neutral-900">Add staff account</div>
-                <div className="mt-1 text-sm text-neutral-600">
-                    Create a login for staff, then assign role/department.
-                </div>
-                </div>
-            </div>
-
-            <AddUserForm
-                onCreated={(newUser) => setUsers((prev) => [newUser, ...prev])}
-                onError={(m) => setErr(m)}
-            />
-
-            <div className="mt-5 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-                <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Search users…"
-                className="w-full sm:w-[320px] rounded-2xl border border-neutral-200 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-600/15"
-                />
-                <div className="text-sm text-neutral-600">
-                Total: <span className="font-medium text-neutral-900">{users.length}</span>
-                </div>
-            </div>
-            </div>
-            <table className="min-w-[900px] w-full text-sm">
+        <table className="min-w-[900px] w-full text-sm">
           <thead className="bg-white sticky top-0">
             <tr className="text-left text-xs uppercase tracking-wide text-neutral-500 border-b border-neutral-200/70">
               <th className="py-3 px-4">Name</th>
@@ -250,11 +218,8 @@ export default function UsersAdminClient({ initialUsers }: { initialUsers: UserR
                     className={inputCls}
                     value={u.full_name ?? ""}
                     onChange={(e) =>
-                      setUsers((prev) =>
-                        prev.map((x) => (x.id === u.id ? { ...x, full_name: e.target.value } : x))
-                      )
+                      setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, full_name: e.target.value } : x)))
                     }
-                    placeholder="Full name"
                   />
                 </td>
 
@@ -263,11 +228,8 @@ export default function UsersAdminClient({ initialUsers }: { initialUsers: UserR
                     className={inputCls}
                     value={u.department ?? ""}
                     onChange={(e) =>
-                      setUsers((prev) =>
-                        prev.map((x) => (x.id === u.id ? { ...x, department: e.target.value } : x))
-                      )
+                      setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, department: e.target.value } : x)))
                     }
-                    placeholder="Department"
                   />
                 </td>
 
@@ -276,9 +238,7 @@ export default function UsersAdminClient({ initialUsers }: { initialUsers: UserR
                     className={inputCls}
                     value={u.role}
                     onChange={(e) =>
-                      setUsers((prev) =>
-                        prev.map((x) => (x.id === u.id ? { ...x, role: e.target.value as Role } : x))
-                      )
+                      setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, role: e.target.value as Role } : x)))
                     }
                   >
                     <option value="STAFF">STAFF</option>
@@ -287,9 +247,7 @@ export default function UsersAdminClient({ initialUsers }: { initialUsers: UserR
                   </select>
                 </td>
 
-                <td className="py-3 px-4 text-xs text-neutral-500 font-mono">
-                  {u.id}
-                </td>
+                <td className="py-3 px-4 text-xs text-neutral-500 font-mono">{u.id}</td>
 
                 <td className="py-3 px-4">
                   <button

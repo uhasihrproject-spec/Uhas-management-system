@@ -1,3 +1,6 @@
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import UsersAdminClient from "./UsersAdminClient";
@@ -16,11 +19,26 @@ export default async function AdminUsersPage() {
     );
   }
 
-  const { data: me } = await supabase
+  const { data: me, error: meErr } = await supabase
     .from("profiles")
     .select("role")
     .eq("id", auth.user.id)
     .maybeSingle();
+
+  if (meErr) {
+    return (
+      <div className="p-8">
+        <Link href="/admin" className="text-sm text-emerald-700 hover:underline">
+          ← Back to Admin
+        </Link>
+
+        <div className="mt-6 rounded-3xl bg-white p-6 ring-1 ring-red-200/70">
+          <p className="text-sm text-red-700 font-medium">Profile check failed</p>
+          <p className="mt-2 text-sm text-neutral-700">{meErr.message}</p>
+        </div>
+      </div>
+    );
+  }
 
   if (me?.role !== "ADMIN") {
     return (
@@ -49,12 +67,13 @@ export default async function AdminUsersPage() {
       </p>
       <h1 className="mt-2 text-2xl font-semibold">Users & Roles</h1>
       <p className="mt-2 text-sm text-neutral-700">
-        Set who is <b>SECRETARY</b>, <b>ADMIN</b>, or <b>STAFF</b>.
+        Create staff accounts and assign <b>ADMIN</b>, <b>SECRETARY</b>, or <b>STAFF</b>.
       </p>
 
       {error ? (
         <div className="mt-6 rounded-3xl bg-white p-6 ring-1 ring-red-200/70">
-          <p className="text-sm text-red-700">{error.message}</p>
+          <p className="text-sm text-red-700 font-medium">Failed to load users</p>
+          <p className="mt-2 text-sm text-neutral-700">{error.message}</p>
         </div>
       ) : (
         <div className="mt-6">
