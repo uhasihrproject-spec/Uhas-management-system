@@ -44,11 +44,15 @@ export async function POST(req: Request) {
 
   // 1) Create auth user
   const { data: created, error: createErr } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true, // so they can login immediately
-    user_metadata: { role },
-  });
+  email,
+  password,
+  email_confirm: true,
+  user_metadata: {
+    role,
+    full_name,          // ✅ IMPORTANT
+    department,         // optional
+  },
+});
 
   if (createErr || !created.user) {
     return NextResponse.json({ error: createErr?.message || "Failed to create user" }, { status: 400 });
