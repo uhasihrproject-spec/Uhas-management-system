@@ -37,8 +37,14 @@ export default async function RootLayout({
     <html lang="en">
       <body className="min-h-screen bg-brand text-neutral-900">
         <TopLoader />
-        <IntroOverlay />
+        
+        <IntroOverlay
+          isAuthed={!!user}
+          displayName={fullName ?? user?.email ?? null}
+        />
 
+
+      <div className="intro-app">
         {user ? (
           <AppShell
             userEmail={user.email ?? ""}
@@ -50,6 +56,7 @@ export default async function RootLayout({
         ) : (
           <main>{children}</main>
         )}
+      </div>
       </body>
     </html>
   );

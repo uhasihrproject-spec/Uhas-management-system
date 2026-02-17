@@ -85,72 +85,77 @@ body {
 }
 
 @layer utilities {
-  /* Animation Keyframes */
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+  @keyframes io-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
   }
 
-  @keyframes slideIn {
-    from {
-      opacity: 0;
-      transform: translateX(-20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
+  @keyframes io-spin-reveal {
+    0% { transform: rotate(-12deg) scale(0.85); opacity: 0; filter: blur(10px); }
+    70% { transform: rotate(0deg) scale(1.03); opacity: 1; filter: blur(0px); }
+    100% { transform: rotate(0deg) scale(1); opacity: 1; filter: blur(0px); }
   }
 
-  @keyframes float {
-    0%,
-    100% {
-      transform: translateY(0px) rotate(0deg);
-    }
-    50% {
-      transform: translateY(-10px) rotate(5deg);
-    }
+  @keyframes io-fade-scale-in {
+    0% { transform: scale(0.96); opacity: 0; filter: blur(8px); }
+    100% { transform: scale(1); opacity: 1; filter: blur(0px); }
   }
 
-  @keyframes fadeInStagger {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+  @keyframes io-morph-out {
+    0% { transform: scale(1) rotate(0deg); opacity: 1; filter: blur(0px); }
+    100% { transform: scale(1.12) rotate(10deg); opacity: 0; filter: blur(14px); }
   }
 
-  /* Animation Classes */
-  .animate-fadeIn {
-    animation: fadeIn 0.5s ease-out;
+  @keyframes io-grain-animate {
+    0%, 100% { transform: translate(0, 0); }
+    10% { transform: translate(-3%, -2%); }
+    20% { transform: translate(-6%, 2%); }
+    30% { transform: translate(3%, -6%); }
+    40% { transform: translate(-2%, 8%); }
+    50% { transform: translate(-6%, 2%); }
+    60% { transform: translate(8%, 0); }
+    70% { transform: translate(0, 6%); }
+    80% { transform: translate(-8%, 0); }
+    90% { transform: translate(6%, 2%); }
   }
 
-  .animate-fadeInDelay2 {
-    animation: fadeIn 0.7s ease-out 0.2s backwards;
+  .io-grain {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='3' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    opacity: 0.014;
+    animation: io-grain-animate 9s steps(10) infinite;
   }
 
-  .animate-fadeInDelay3 {
-    animation: fadeIn 0.7s ease-out 0.3s backwards;
-  }
+  .io-spin-reveal { animation: io-spin-reveal 900ms cubic-bezier(.2,.9,.2,1) both; }
+  .io-fade-scale-in { animation: io-fade-scale-in 700ms cubic-bezier(.2,.9,.2,1) both; }
+  .io-morph-out { animation: io-morph-out 800ms cubic-bezier(.2,.9,.2,1) both; }
+  .io-blink { animation: io-blink 900ms ease-in-out 2; }
+}
 
-  .animate-slideIn {
-    animation: slideIn 0.6s ease-out;
+/* Production-grade: reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .io-grain, .io-spin-reveal, .io-fade-scale-in, .io-morph-out, .io-blink {
+    animation: none !important;
+    transition: none !important;
   }
+}
 
-  .animate-float {
-    animation: float 6s ease-in-out infinite;
-  }
+/* Smooth handoff: app settles in while intro plays */
+html[data-intro="playing"] .intro-app {
+  opacity: 0.96;
+  transform: translateY(10px);
+  transition: opacity 700ms ease, transform 700ms ease;
+}
 
-  .animate-fadeInStagger {
-    animation: fadeInStagger 0.5s ease-out backwards;
+html[data-intro="done"] .intro-app {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 700ms ease, transform 700ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-intro="playing"] .intro-app,
+  html[data-intro="done"] .intro-app {
+    transition: none !important;
+    transform: none !important;
   }
 }
