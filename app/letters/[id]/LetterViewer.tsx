@@ -68,13 +68,12 @@ export default function LetterViewer({
         </div>
 
         <a
-        href={`/api/letters/download?path=${encodeURIComponent(filePath)}&name=${encodeURIComponent(fileName)}&letterId=${encodeURIComponent(letterId)}`}
+        href={`/api/letters/download?path=${encodeURIComponent(filePath)}&letterId=${encodeURIComponent(letterId)}`}
         className="shrink-0 rounded-2xl px-4 py-2 text-sm font-semibold text-white
         bg-gradient-to-r from-emerald-600 to-amber-500 hover:brightness-95"
         >
         Download File
         </a>
-
       </div>
 
       <div className="bg-neutral-50">

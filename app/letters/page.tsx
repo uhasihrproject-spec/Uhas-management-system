@@ -15,20 +15,18 @@ export default async function LettersPage({
   searchParams: Promise<SearchParams> | SearchParams;
 }) {
   const sp = await Promise.resolve(searchParams);
-
   const supabase = await supabaseServer();
 
   const { data: auth } = await supabase.auth.getUser();
-  let role: string | null = null;
 
+  let role: "ADMIN" | "SECRETARY" | "STAFF" | null = null;
   if (auth.user) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", auth.user.id)
       .maybeSingle();
-
-    role = profile?.role ?? null;
+    role = (profile?.role as any) ?? null;
   }
 
   const canWrite = role === "ADMIN" || role === "SECRETARY";
@@ -41,7 +39,7 @@ export default async function LettersPage({
   let query = supabase
     .from("letters")
     .select(
-      "id,ref_no,direction,date_received,sender_name,recipient_department,subject,status,confidentiality,created_at,file_path,file_name,mime_type",
+      "id,ref_no,direction,date_received,sender_name,recipient_department,subject,status,confidentiality,created_at",
       { count: "exact" }
     )
     .order("created_at", { ascending: false })
@@ -60,20 +58,15 @@ export default async function LettersPage({
   const { data, error } = await query;
 
   return (
-    // No mx-auto/max-w here (AppShell already handles it)
-    <div className="px-4 sm:px-6 lg:px-8 2xl:px-10 py-6 sm:py-8 2xl:py-10">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <div className="w-full min-w-0">
+      {/* Header (match dashboard spacing) */}
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
         <div className="max-w-3xl">
           <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">
             UHAS Procurement Directorate
           </p>
-
-          <h1 className="mt-2 text-2xl sm:text-3xl 2xl:text-4xl font-semibold">
-            Letters
-          </h1>
-
-          <p className="mt-2 text-sm sm:text-base 2xl:text-lg text-neutral-600">
+          <h1 className="mt-2 text-2xl sm:text-3xl font-semibold">Letters</h1>
+          <p className="mt-2 text-sm sm:text-base text-neutral-600">
             Search and manage incoming/outgoing letters.
           </p>
         </div>
@@ -81,7 +74,8 @@ export default async function LettersPage({
         {canWrite ? (
           <Link
             href="/letters/new"
-            className="inline-flex w-full md:w-auto items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-emerald-600 to-amber-500 hover:brightness-95"
+            className="inline-flex w-full sm:w-auto items-center justify-center rounded-2xl py-2.5 text-sm font-light text-white
+            btn-brand mt-4 sm:mt-0 btn-brand:hover"
           >
             + New Letter
           </Link>
@@ -89,12 +83,12 @@ export default async function LettersPage({
       </div>
 
       {/* Content */}
-      <div className="mt-6 sm:mt-7">
+      <div className="mt-6 mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
         {error ? (
-          <div className="rounded-3xl bg-white p-5 sm:p-6 ring-1 ring-red-200/70">
-            <p className="text-sm text-red-600">{error.message}</p>
-            <p className="mt-2 text-xs sm:text-sm text-neutral-500">
-              If this is an RLS issue, ensure you’re logged in and have read access.
+          <div className="rounded-3xl bg-white p-6 ring-1 ring-red-200/70">
+            <p className="text-sm text-red-700">{error.message}</p>
+            <p className="mt-2 text-xs text-neutral-500">
+              If this is an RLS issue, ensure you're logged in and have read access.
             </p>
           </div>
         ) : (

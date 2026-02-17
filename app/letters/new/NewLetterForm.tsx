@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type Direction = "INCOMING" | "OUTGOING";
 type Status = "RECEIVED" | "SCANNED" | "ASSIGNED" | "ARCHIVED";
@@ -365,9 +366,10 @@ export default function NewLetterForm() {
           </button>
 
           <button
+            type="submit"
             disabled={loading}
             className="w-full sm:w-auto rounded-2xl px-5 py-3 text-sm font-medium text-white
-                       bg-gradient-to-r from-emerald-600 to-amber-500 hover:brightness-95 disabled:opacity-60"
+                       btn-brand btn-brand:hover disabled:opacity-60"
           >
             {loading ? "Saving..." : "Save Letter"}
           </button>

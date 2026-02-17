@@ -2,7 +2,7 @@ import NewLetterForm from "./NewLetterForm";
 
 export default function NewLetterPage() {
   return (
-    <div className="p-8">
+    <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
       <div>
         <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">
           UHAS Procurement Directorate
