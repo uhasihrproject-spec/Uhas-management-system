@@ -74,8 +74,8 @@ export default async function LettersPage({
         {canWrite ? (
           <Link
             href="/letters/new"
-            className="inline-flex w-full sm:w-auto items-center justify-center rounded-2xl py-2.5 text-sm font-light text-white
-            btn-brand mt-4 sm:mt-0 btn-brand:hover"
+            className="inline-flex w-full sm:w-auto items-center justify-center rounded-2xl px-4 py-2.5 text-sm text-white
+            btn-brand mt-4 sm:mt-0"
           >
             + New Letter
           </Link>

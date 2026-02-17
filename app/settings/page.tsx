@@ -9,10 +9,48 @@ type Profile = {
   full_name: string | null;
   department: string | null;
   role: "ADMIN" | "SECRETARY" | "STAFF" | null;
+  pref_compact?: boolean | null;
+  pref_hints?: boolean | null;
+};
+
+type AuditRow = {
+  id: string;
+  action: string;
+  created_at: string;
+  letter_id: string | null;
+  meta: any;
 };
 
 const inputCls =
   "w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-emerald-600/15 transition-all";
+
+function fmtTime(iso?: string | null) {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString();
+  } catch {
+    return iso;
+  }
+}
+
+function ActionPill({ action }: { action: string }) {
+  const a = (action || "").toUpperCase();
+  const cls =
+    a === "DOWNLOADED"
+      ? "bg-amber-50 text-amber-800 ring-amber-100"
+      : a === "UPDATED" || a === "REPLACED_SCAN"
+      ? "bg-emerald-50 text-emerald-800 ring-emerald-100"
+      : a === "VIEWED"
+      ? "bg-neutral-100 text-neutral-700 ring-neutral-200"
+      : "bg-neutral-100 text-neutral-700 ring-neutral-200";
+
+  return (
+    <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs ring-1 ${cls}`}>
+      {a || "ACTION"}
+    </span>
+  );
+}
 
 function CollapsibleSection({
   title,
@@ -37,7 +75,7 @@ function CollapsibleSection({
         type="button"
       >
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <h2 className="text-lg font-semibold text-neutral-900">{title}</h2>
             {badge}
           </div>
@@ -83,10 +121,14 @@ export default function SettingsOverview() {
 
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState<string>("");
+  const [lastSignInAt, setLastSignInAt] = useState<string | null>(null);
+
   const [profile, setProfile] = useState<Profile>({
     full_name: null,
     department: null,
     role: null,
+    pref_compact: false,
+    pref_hints: true,
   });
 
   const [saving, setSaving] = useState(false);
@@ -95,18 +137,28 @@ export default function SettingsOverview() {
 
   const [pwOpen, setPwOpen] = useState(false);
 
-  // preferences (local only for now)
+  // real prefs
   const [compactMode, setCompactMode] = useState(false);
   const [showHints, setShowHints] = useState(true);
+
+  // activity
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityErr, setActivityErr] = useState("");
+  const [activity, setActivity] = useState<AuditRow[]>([]);
+
+  const roleLabel = useMemo(() => profile.role ?? "STAFF", [profile.role]);
+  const isAdmin = profile.role === "ADMIN";
 
   useEffect(() => {
     (async () => {
       setLoading(true);
       setErr("");
       setMsg("");
+      setActivityErr("");
 
       const { data: auth } = await supabase.auth.getUser();
       const user = auth.user;
+
       if (!user) {
         setLoading(false);
         setErr("You are not signed in.");
@@ -114,19 +166,37 @@ export default function SettingsOverview() {
       }
 
       setEmail(user.email ?? "");
+      setLastSignInAt((user as any)?.last_sign_in_at ?? null);
 
       const { data: p, error } = await supabase
         .from("profiles")
-        .select("full_name, department, role")
+        .select("full_name, department, role, pref_compact, pref_hints")
         .eq("id", user.id)
         .maybeSingle();
 
       if (error) setErr(error.message);
-      if (p) setProfile(p as any);
 
-      // local preferences
-      setCompactMode(localStorage.getItem("pref_compact") === "1");
-      setShowHints(localStorage.getItem("pref_hints") !== "0");
+      if (p) {
+        const prof = p as Profile;
+        setProfile(prof);
+
+        // ✅ use DB values, fallback to defaults
+        setCompactMode(Boolean(prof.pref_compact));
+        setShowHints(prof.pref_hints !== false);
+      }
+
+      // Also fetch activity (will work once you add audit_read_own policy)
+      setActivityLoading(true);
+      const { data: logs, error: logsErr } = await supabase
+        .from("audit_logs")
+        .select("id, action, created_at, letter_id, meta")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (logsErr) setActivityErr(logsErr.message);
+      setActivity((logs ?? []) as any);
+      setActivityLoading(false);
 
       setLoading(false);
     })();
@@ -151,7 +221,6 @@ export default function SettingsOverview() {
         .eq("id", auth.user.id);
 
       if (error) throw error;
-
       setMsg("Profile updated ✅");
       setTimeout(() => setMsg(""), 3000);
     } catch (e: any) {
@@ -161,15 +230,33 @@ export default function SettingsOverview() {
     }
   }
 
-  function savePrefs() {
-    localStorage.setItem("pref_compact", compactMode ? "1" : "0");
-    localStorage.setItem("pref_hints", showHints ? "1" : "0");
-    setMsg("Preferences saved ✅");
-    setTimeout(() => setMsg(""), 3000);
+  async function savePrefs() {
     setErr("");
-  }
+    setMsg("");
+    setSaving(true);
 
-  const roleLabel = useMemo(() => profile.role ?? "STAFF", [profile.role]);
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) throw new Error("Not signed in.");
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          pref_compact: compactMode,
+          pref_hints: showHints,
+        })
+        .eq("id", auth.user.id);
+
+      if (error) throw error;
+
+      setMsg("Preferences saved ✅");
+      setTimeout(() => setMsg(""), 3000);
+    } catch (e: any) {
+      setErr(e?.message || "Failed to save preferences.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const roleBadge = (
     <span className="inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
@@ -216,6 +303,14 @@ export default function SettingsOverview() {
         defaultOpen={true}
       >
         <form onSubmit={saveProfile} className="p-5 sm:p-6 space-y-4">
+          {lastSignInAt && (
+            <div className="rounded-lg bg-neutral-50 border border-neutral-200 p-3">
+              <p className="text-xs text-neutral-600">
+                Last sign-in: <span className="text-neutral-900 font-medium">{fmtTime(lastSignInAt)}</span>
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium text-neutral-700">Full name</label>
@@ -265,61 +360,78 @@ export default function SettingsOverview() {
       {/* Security Section */}
       <CollapsibleSection
         title="Security"
-        description="Keep your account protected."
+        description="Password and sign-in controls."
       >
-        <div className="p-5 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="rounded-xl border border-neutral-200 p-5 hover:border-neutral-300 transition-colors">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <div className="text-sm font-semibold text-neutral-900">Change password</div>
-                <div className="mt-1 text-sm text-neutral-600">
-                  Update your password securely using your current password.
+        <div className="p-5 sm:p-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="rounded-xl border border-neutral-200 p-5 hover:border-neutral-300 transition-colors">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-semibold text-neutral-900">Change password</div>
+                  <div className="mt-1 text-sm text-neutral-600">
+                    Update your password securely (requires your current password).
+                  </div>
                 </div>
               </div>
+              <button
+                onClick={() => setPwOpen(true)}
+                className="mt-4 w-full rounded-xl bg-emerald-600 text-white px-4 py-2.5 text-sm font-semibold hover:bg-emerald-700 transition-all active:scale-95"
+                type="button"
+              >
+                Change password
+              </button>
             </div>
-            <button
-              onClick={() => setPwOpen(true)}
-              className="mt-4 w-full rounded-xl bg-emerald-600 text-white px-4 py-2.5 text-sm font-semibold hover:bg-emerald-700 transition-all active:scale-95"
-              type="button"
-            >
-              Change password
-            </button>
+
+            <div className="rounded-xl border border-neutral-200 p-5 hover:border-neutral-300 transition-colors">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-semibold text-neutral-900">Forgot password</div>
+                  <div className="mt-1 text-sm text-neutral-600">
+                    Sends a reset link to your email and opens the reset page inside the app.
+                  </div>
+                </div>
+              </div>
+              <Link
+                href="/auth/forgot"
+                className="mt-4 block w-full rounded-xl bg-amber-600 text-white px-4 py-2.5 text-sm font-semibold hover:bg-amber-700 transition-all active:scale-95 text-center"
+              >
+                Send reset link
+              </Link>
+            </div>
           </div>
 
-          <div className="rounded-xl border border-neutral-200 p-5 opacity-60">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-lg bg-neutral-100 flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          {isAdmin && (
+            <div className="rounded-xl bg-neutral-50 border border-neutral-200 p-4">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-neutral-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-              </div>
-              <div className="flex-1">
-                <div className="text-sm font-semibold text-neutral-900">Two-factor authentication</div>
-                <div className="mt-1 text-sm text-neutral-600">
-                  Coming soon: extra verification for Admin accounts.
+                <div>
+                  <div className="text-sm font-semibold text-neutral-900">Admin note</div>
+                  <p className="mt-1 text-sm text-neutral-600">
+                    For stronger protection, enable Supabase MFA (TOTP) for your admin account in your Auth settings.
+                  </p>
                 </div>
               </div>
             </div>
-            <button
-              className="mt-4 w-full rounded-xl border border-neutral-200 px-4 py-2.5 text-sm font-semibold text-neutral-400 cursor-not-allowed"
-              type="button"
-              disabled
-            >
-              Enable 2FA (soon)
-            </button>
-          </div>
+          )}
         </div>
       </CollapsibleSection>
 
       {/* Preferences Section */}
       <CollapsibleSection
         title="Preferences"
-        description="Customize how the system feels."
+        description="Stored on your account (works on any device)."
       >
         <div className="p-5 sm:p-6 space-y-3">
           <label className="flex items-center justify-between gap-4 rounded-xl border border-neutral-200 p-4 cursor-pointer hover:bg-neutral-50 transition-colors group">
@@ -354,7 +466,7 @@ export default function SettingsOverview() {
               <div>
                 <div className="text-sm font-semibold text-neutral-900">Show hints</div>
                 <div className="text-sm text-neutral-600">
-                  Display small tips like "Use search + filters…".
+                  Show helpful tips at the top of key pages.
                 </div>
               </div>
             </div>
@@ -370,41 +482,88 @@ export default function SettingsOverview() {
             <button
               type="button"
               onClick={savePrefs}
-              className="rounded-xl bg-emerald-600 text-white px-5 py-2.5 text-sm font-semibold hover:bg-emerald-700 transition-all active:scale-95"
+              disabled={saving}
+              className="rounded-xl bg-emerald-600 text-white px-5 py-2.5 text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all active:scale-95"
             >
-              Save preferences
+              {saving ? "Saving…" : "Save preferences"}
             </button>
           </div>
         </div>
       </CollapsibleSection>
 
-      {/* Activity Section */}
+      {/* Recent Activity Section */}
       <CollapsibleSection
-        title="Activity"
-        description="View recent actions like viewed / updated / downloaded."
+        title="Recent activity"
+        description="Your latest actions in the registry (viewed / updated / downloaded)."
+        badge={
+          isAdmin ? (
+            <Link
+              href="/admin/audits"
+              className="inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition-colors"
+            >
+              View all audits →
+            </Link>
+          ) : undefined
+        }
       >
         <div className="p-5 sm:p-6">
-          <div className="rounded-xl border border-neutral-200 p-5 hover:border-neutral-300 transition-colors">
-            <div className="flex items-start gap-3 mb-4">
-              <div className="w-10 h-10 rounded-lg bg-neutral-50 flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-neutral-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          {activityLoading ? (
+            <div className="flex items-center gap-3 text-sm text-neutral-600">
+              <div className="w-4 h-4 border-2 border-neutral-300 border-t-emerald-600 rounded-full animate-spin" />
+              Loading activity…
+            </div>
+          ) : activityErr ? (
+            <div className="rounded-xl bg-red-50 border border-red-200 p-4">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-              </div>
-              <div className="flex-1">
-                <div className="text-sm font-semibold text-neutral-900">Audit logs</div>
-                <div className="mt-1 text-sm text-neutral-600">
-                  Track all system activities and changes for compliance.
+                <div>
+                  <p className="text-sm text-red-700">{activityErr}</p>
+                  <p className="mt-1 text-xs text-neutral-600">
+                    If you're not admin, make sure the <b>audit_read_own</b> policy exists.
+                  </p>
                 </div>
               </div>
             </div>
-            <Link
-              href="/admin/audits"
-              className="block w-full rounded-xl bg-emerald-600 text-white px-4 py-2.5 text-sm font-semibold hover:bg-emerald-700 transition-all active:scale-95 text-center"
-            >
-              Open audit logs
-            </Link>
-          </div>
+          ) : activity.length ? (
+            <div className="space-y-3">
+              {activity.map((a) => (
+                <div
+                  key={a.id}
+                  className="rounded-xl border border-neutral-200 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 hover:border-neutral-300 transition-colors"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <ActionPill action={a.action} />
+                      <p className="text-sm font-semibold text-neutral-900 truncate">
+                        {a.letter_id ? `Letter: ${a.letter_id}` : "System"}
+                      </p>
+                    </div>
+                    <p className="mt-1 text-xs text-neutral-500">{fmtTime(a.created_at)}</p>
+                  </div>
+
+                  {a.letter_id && (
+                    <Link
+                      href={`/letters/${a.letter_id}`}
+                      className="inline-flex items-center justify-center rounded-lg border border-neutral-200 px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-neutral-50 transition-colors whitespace-nowrap"
+                    >
+                      Open letter →
+                    </Link>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <svg className="w-12 h-12 mx-auto text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <p className="mt-3 text-sm text-neutral-600">
+                No activity recorded yet.
+              </p>
+            </div>
+          )}
         </div>
       </CollapsibleSection>
     </div>

@@ -100,7 +100,7 @@ export default function AppShell({
       {/* Mobile header + drawer */}
       <MobileNav userEmail={userEmail} role={role} userName={userName} />
 
-      <div className="lg:flex h-screen">
+      <div className="lg:flex lg:h-screen">
         {/* Desktop Sidebar */}
         <aside className="hidden lg:flex lg:flex-col w-[280px] bg-white border-r border-neutral-200">
           <div className="flex-1 flex flex-col overflow-hidden">
@@ -195,7 +195,7 @@ export default function AppShell({
         </aside>
 
         {/* Main */}
-        <main className="flex-1 min-w-0 overflow-y-auto bg-neutral-50">
+        <main className="flex-1 min-w-0 bg-neutral-50 lg:overflow-y-auto">
           {children}
         </main>
       </div>
