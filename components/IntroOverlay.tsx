@@ -194,7 +194,7 @@ export default function IntroOverlay() {
                 animation: phase >= 5 && phase < 6 ? "blink 1s ease-in-out 2" : "none",
               }}
             >
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold text-neutral-800 tracking-tight">
+              <h1 className="text-3xl sm:text-5xl md:text-6xl font-semibold text-neutral-800 tracking-tight">
                 Welcome
               </h1>
             </div>

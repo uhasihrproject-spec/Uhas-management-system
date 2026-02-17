@@ -22,7 +22,7 @@ function NavItem({ href, label, isActive }: { href: string; label: string; isAct
       prefetch={true}
     >
       {isActive && (
-        <span className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 bg-emerald-500 rounded-r" />
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 bg-yellow-200 rounded-r" />
       )}
       
       <span className="relative">{label}</span>
