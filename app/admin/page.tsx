@@ -67,7 +67,7 @@ export default async function AdminHomePage() {
 
   return (
     <div className="p-8">
-      <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">
+      <p className="text-xs uppercase tracking-[0.25em] text-neutral-600">
         UHAS Procurement Directorate
       </p>
       <h1 className="mt-2 text-2xl font-semibold">Admin Console</h1>
@@ -84,8 +84,8 @@ export default async function AdminHomePage() {
           <div className="mt-2 text-sm text-neutral-600">
             Assign ADMIN / SECRETARY / STAFF and set departments.
           </div>
-          <div className="mt-4 inline-flex rounded-2xl px-4 py-2 text-sm font-semibold text-white
-          bg-gradient-to-r from-emerald-600 to-amber-500 hover:brightness-95">
+          <div className="mt-4 inline-flex rounded-2xl px-4 py-2 text-sm font-semibold text-black
+           bg-emerald-100 hover:brightness-95">
             Open
           </div>
         </Link>
@@ -98,8 +98,8 @@ export default async function AdminHomePage() {
           <div className="mt-2 text-sm text-neutral-600">
             See who viewed, edited, replaced scans, or downloaded letters.
           </div>
-          <div className="mt-4 inline-flex rounded-2xl px-4 py-2 text-sm font-semibold text-white
-          bg-gradient-to-r from-emerald-600 to-amber-500 hover:brightness-95">
+          <div className="mt-4 inline-flex rounded-2xl px-4 py-2 text-sm font-semibold text-black
+           bg-emerald-100 hover:brightness-95">
             Open
           </div>
         </Link>

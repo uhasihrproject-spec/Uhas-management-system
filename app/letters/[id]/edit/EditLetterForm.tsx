@@ -192,7 +192,7 @@ export default function EditLetterForm({ initial }: { initial: LetterEditInitial
 
           <div className="md:col-span-2">
             <Field label="Summary (optional)">
-              <textarea value={summary} onChange={(e) => setSummary(e.target.value)} className={`${inputCls} min-h-[120px]`} />
+              <textarea value={summary} onChange={(e) => setSummary(e.target.value)} className={`${inputCls} min-h-30`} />
             </Field>
           </div>
 
@@ -224,8 +224,8 @@ export default function EditLetterForm({ initial }: { initial: LetterEditInitial
             onClick={saveFields}
             type="button"
             disabled={busy}
-            className="w-full sm:w-auto rounded-2xl px-5 py-3 text-sm font-medium text-white
-            bg-gradient-to-r from-emerald-600 to-amber-500 hover:brightness-95 disabled:opacity-60"
+            className="w-full sm:w-auto rounded-2xl px-5 py-3 text-sm font-medium text-black
+             bg-emerald-100 hover:brightness-95 disabled:opacity-60"
           >
             {saving ? "Saving…" : "Save Changes"}
           </button>

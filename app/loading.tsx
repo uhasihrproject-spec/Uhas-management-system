@@ -1,10 +1,10 @@
 export default function Loading() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-emerald-50/30 flex items-center justify-center px-6">
+    <div className="min-h-screen bg-linear-to-b from-white to-emerald-50/30 flex items-center justify-center px-6">
       <div className="w-full max-w-md">
-        <div className="rounded-[32px] bg-white ring-1 ring-neutral-200/70 shadow-sm p-6">
+        <div className="rounded-4xl bg-white ring-1 ring-neutral-200/70 shadow-sm p-6">
           <div className="flex items-center gap-3">
-            <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-emerald-600 to-amber-500 flex items-center justify-center">
+            <div className="h-11 w-11 rounded-2xl bg-linear-to-br from-emerald-600 to-amber-500 flex items-center justify-center">
               <div className="h-5 w-5 rounded-full border-2 border-white/50 border-t-white animate-spin" />
             </div>
 

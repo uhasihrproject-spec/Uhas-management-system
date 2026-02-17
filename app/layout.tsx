@@ -2,6 +2,7 @@ import "./globals.css";
 import { supabaseServer } from "@/lib/supabase/server";
 import AppShell from "@/components/shell/AppShell";
 import TopLoader from "@/components/TopLoader";
+import IntroOverlay from "@/components/IntroOverlay";
 
 export const metadata = {
   title: "UHAS Procurement Records",
@@ -36,6 +37,7 @@ export default async function RootLayout({
     <html lang="en">
       <body className="min-h-screen bg-brand text-neutral-900">
         <TopLoader />
+        <IntroOverlay />
 
         {user ? (
           <AppShell

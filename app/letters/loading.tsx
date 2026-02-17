@@ -9,7 +9,7 @@ export default function LettersLoading() {
 
           <div className="mt-7 rounded-3xl bg-white ring-1 ring-neutral-200/70 overflow-hidden">
             <div className="p-5 border-b border-neutral-200/70">
-              <div className="h-10 w-full max-w-[520px] bg-neutral-200 rounded-2xl" />
+              <div className="h-10 w-full max-w-130 bg-neutral-200 rounded-2xl" />
               <div className="mt-3 flex gap-2">
                 <div className="h-9 w-44 bg-neutral-200 rounded-2xl" />
                 <div className="h-9 w-44 bg-neutral-200 rounded-2xl" />

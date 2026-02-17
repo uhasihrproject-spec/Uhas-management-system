@@ -121,12 +121,12 @@ return (
               value={localQ}
               onChange={(e) => setLocalQ(e.target.value)}
               placeholder="Search ref, sender, subject, department..."
-              className="w-full sm:w-[360px] lg:w-[420px] rounded-2xl border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-600/15"
+              className="w-full sm:w-90 lg:w-105 rounded-2xl border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-600/15"
             />
             <button
               type="submit"
-              className="w-full sm:w-auto rounded-2xl px-4 py-2.5 text-sm font-semibold text-white
-              bg-gradient-to-r from-emerald-600 to-amber-500 hover:brightness-95 whitespace-nowrap"
+              className="w-full sm:w-auto rounded-2xl px-4 py-2.5 text-sm font-semibold text-black
+               bg-emerald-100 hover:brightness-95 whitespace-nowrap"
             >
               Search
             </button>

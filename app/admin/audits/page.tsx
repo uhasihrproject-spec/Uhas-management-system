@@ -88,7 +88,7 @@ export default async function AdminAuditsPage({
           </div>
 
           <div className="overflow-auto">
-            <table className="min-w-[1000px] w-full text-sm">
+            <table className="w-full text-sm">
               <thead className="bg-white sticky top-0">
                 <tr className="text-left text-xs uppercase tracking-wide text-neutral-500 border-b border-neutral-200/70">
                   <th className="py-3 px-4">Time</th>

@@ -95,8 +95,8 @@ function AddUserForm({
         <button
           onClick={create}
           disabled={creating || !email || password.length < 8}
-          className="rounded-2xl px-4 py-2 text-sm font-semibold text-white
-          bg-gradient-to-r from-emerald-600 to-amber-500 hover:brightness-95 disabled:opacity-60"
+          className="rounded-2xl px-4 py-2 text-sm font-semibold text-black
+           bg-emerald-100 hover:brightness-95 disabled:opacity-60"
         >
           {creating ? "Creating…" : "Create Account"}
         </button>
@@ -199,7 +199,7 @@ export default function UsersAdminClient({ initialUsers }: { initialUsers: UserR
 
       {/* Table */}
       <div className="overflow-auto">
-        <table className="min-w-[900px] w-full text-sm">
+        <table className="min-w-225 w-full text-sm">
           <thead className="bg-white sticky top-0">
             <tr className="text-left text-xs uppercase tracking-wide text-neutral-500 border-b border-neutral-200/70">
               <th className="py-3 px-4">Name</th>
@@ -253,8 +253,8 @@ export default function UsersAdminClient({ initialUsers }: { initialUsers: UserR
                   <button
                     onClick={() => save(u)}
                     disabled={savingId === u.id}
-                    className="rounded-2xl px-4 py-2 text-sm font-semibold text-white
-                    bg-gradient-to-r from-emerald-600 to-amber-500 hover:brightness-95 disabled:opacity-60"
+                    className="rounded-2xl px-4 py-2 text-sm font-semibold text-black
+                     bg-emerald-100 hover:brightness-95 disabled:opacity-60"
                   >
                     {savingId === u.id ? "Saving…" : "Save"}
                   </button>

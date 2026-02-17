@@ -17,8 +17,8 @@ export default function LoadingButton({
       {...props}
       disabled={loading || props.disabled}
       className={
-        "relative rounded-2xl px-4 py-2 text-sm font-semibold text-white " +
-        "bg-gradient-to-r from-emerald-600 to-amber-500 hover:brightness-95 " +
+        "relative rounded-2xl px-4 py-2 text-sm font-semibold text-black " +
+        " bg-emerald-100 hover:brightness-95 " +
         "disabled:opacity-60 " +
         className
       }

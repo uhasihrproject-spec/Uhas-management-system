@@ -74,7 +74,7 @@ export default function AppShell({
 
       <div className="lg:flex h-screen">
         {/* Desktop Sidebar - Full Screen Height */}
-        <aside className="hidden lg:flex lg:flex-col w-[280px] bg-white border-r border-neutral-200">
+        <aside className="hidden lg:flex lg:flex-col w-70 bg-white border-r border-neutral-200">
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* Header Section */}
             <div className="p-6 border-b border-neutral-200">

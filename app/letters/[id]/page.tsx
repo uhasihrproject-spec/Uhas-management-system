@@ -81,8 +81,8 @@ const canEdit = role === "ADMIN" || role === "SECRETARY";
         {canEdit ? (
         <Link
             href={`/letters/${letter.id}/edit`}
-            className="rounded-2xl px-4 py-2 text-sm font-semibold text-white
-            bg-gradient-to-r from-emerald-600 to-amber-500 hover:brightness-95"
+            className="rounded-2xl px-4 py-2 text-sm font-semibold text-black
+             bg-emerald-100 hover:brightness-95"
         >
             Edit Letter / Replace Scan
         </Link>

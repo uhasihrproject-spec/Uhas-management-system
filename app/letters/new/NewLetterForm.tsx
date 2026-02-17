@@ -194,7 +194,7 @@ export default function NewLetterForm() {
                   type="button"
                   onClick={loadNextRef}
                   disabled={fetchingRef || loading}
-                  className="rounded-2xl px-4 py-3 text-sm font-medium border border-neutral-200 hover:bg-neutral-50 disabled:opacity-60 sm:w-[110px]"
+                  className="rounded-2xl px-4 py-3 text-sm font-medium border border-neutral-200 hover:bg-neutral-50 disabled:opacity-60 sm:w-27.5"
                 >
                   {fetchingRef ? "..." : "Auto"}
                 </button>
@@ -305,7 +305,7 @@ export default function NewLetterForm() {
               <textarea
                 value={summary}
                 onChange={(e) => setSummary(e.target.value)}
-                className={`${inputCls} min-h-[120px]`}
+                className={`${inputCls} min-h-30`}
                 placeholder="Key details, action needed, notes..."
               />
             </Field>
@@ -368,8 +368,8 @@ export default function NewLetterForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full sm:w-auto rounded-2xl px-5 py-3 text-sm font-medium text-white
-                       btn-brand btn-brand:hover disabled:opacity-60"
+            className="w-full sm:w-auto rounded-2xl px-5 py-3 text-sm font-medium text-black
+                        bg-emerald-100 hover:brightness-95 disabled:opacity-60"
           >
             {loading ? "Saving..." : "Save Letter"}
           </button>
