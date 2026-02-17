@@ -108,8 +108,8 @@ export default async function DashboardPage() {
 
         <Link
           href="/letters"
-          className="inline-flex w-full sm:w-auto items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-semibold text-white
-          bg-gradient-to-r from-emerald-600 to-amber-500 hover:brightness-95"
+          className="inline-flex w-full sm:w-auto items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-semibold text-black
+           bg-emerald-100 hover:brightness-95"
         >
           View Letters
         </Link>
@@ -178,6 +178,14 @@ export default async function DashboardPage() {
               </div>
             ) : null}
           </div>
+        </div>
+
+        {/* Optional right-side card (you can replace later) */}
+        <div className="lg:col-span-2 rounded-3xl bg-white p-6 ring-1 ring-neutral-200/70">
+          <div className="text-sm font-semibold text-neutral-900">Tip</div>
+          <p className="mt-2 text-sm text-neutral-600">
+            Use search + filters on the Letters page to find any record fast.
+          </p>
         </div>
       </div>
     </div>
