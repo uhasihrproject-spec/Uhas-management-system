@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import MobileNav from "./MobileNav";
 import type { ReactNode } from "react";
@@ -70,11 +71,11 @@ export default function AppShell({
   return (
     <div className="min-h-screen">
       {/* Mobile header + drawer */}
-      <MobileNav userEmail={userEmail} role={role} />
+      <MobileNav userEmail={userEmail} role={role} userName={userName} />
 
       <div className="lg:flex h-screen">
         {/* Desktop Sidebar - Full Screen Height */}
-        <aside className="hidden lg:flex lg:flex-col w-70 bg-white border-r border-neutral-200">
+        <aside className="hidden lg:flex lg:flex-col w-[280px] bg-white border-r border-neutral-200">
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* Header Section */}
             <div className="p-6 border-b border-neutral-200">
@@ -96,9 +97,15 @@ export default function AppShell({
                   </p>
                 </div>
 
-                {/* Simple Logo */}
-                <div className="h-12 w-12 rounded-lg bg-emerald-100 flex items-center justify-center">
-                  <span className="text-emerald-700 font-bold text-sm">UP</span>
+                {/* Logo */}
+                <div className="h-14 w-14 rounded-lg flex items-center justify-center overflow-hidden">
+                  <Image 
+                    src="/logo/Uhas.png" 
+                    alt="UHAS Logo" 
+                    width={48} 
+                    height={48} 
+                    className="object-contain w-full h-full"
+                  />
                 </div>
               </div>
             </div>

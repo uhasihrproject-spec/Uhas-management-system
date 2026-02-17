@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 
 function NavItem({
@@ -52,9 +53,11 @@ function RoleBadge({ role }: { role: string | null }) {
 export default function MobileNav({
   userEmail,
   role,
+  userName,
 }: {
   userEmail: string;
   role: "ADMIN" | "SECRETARY" | "STAFF" | null;
+  userName?: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -82,11 +85,23 @@ export default function MobileNav({
             ☰
           </button>
 
-          <div className="min-w-0 flex-1 text-center">
-            <p className="text-[10px] uppercase tracking-wider text-neutral-400 truncate">
-              UHAS Procurement
-            </p>
-            <p className="text-sm font-semibold text-neutral-900 truncate">Records</p>
+          <div className="min-w-0 flex-1 flex items-center justify-center gap-2">
+            {/* Logo in header */}
+            <div className="h-8 w-8 rounded-lg bg-white border border-neutral-200 flex items-center justify-center p-1 overflow-hidden flex-shrink-0">
+              <Image 
+                src="/logo/Uhas.png" 
+                alt="UHAS Logo" 
+                width={32} 
+                height={32} 
+                className="object-contain w-full h-full"
+              />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-wider text-neutral-400 truncate">
+                UHAS Procurement
+              </p>
+              <p className="text-sm font-semibold text-neutral-900 truncate">Records</p>
+            </div>
           </div>
 
           <form action="/auth/logout" method="post">
@@ -109,10 +124,24 @@ export default function MobileNav({
             {/* Drawer Header */}
             <div className="p-5 border-b border-neutral-200 flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <p className="text-[10px] uppercase tracking-wider font-semibold text-neutral-400">
-                  UHAS Procurement
-                </p>
-                <h2 className="mt-1 text-lg font-bold text-neutral-900">Records</h2>
+                <div className="flex items-center gap-3 mb-3">
+                  {/* Logo in drawer */}
+                  <div className="h-12 w-12 rounded-lg bg-white border border-neutral-200 flex items-center justify-center p-1.5 overflow-hidden shrink-0">
+                    <Image 
+                      src="/logo/Uhas.png" 
+                      alt="UHAS Logo" 
+                      width={48} 
+                      height={48} 
+                      className="object-contain w-full h-full"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-wider font-semibold text-neutral-400">
+                      UHAS Procurement
+                    </p>
+                    <h2 className="mt-1 text-lg font-bold text-neutral-900">Records</h2>
+                  </div>
+                </div>
                 
                 <div className="mt-3">
                   <RoleBadge role={role} />
@@ -147,7 +176,9 @@ export default function MobileNav({
             <div className="p-4 border-t border-neutral-200">
               <div className="rounded-lg bg-neutral-50 border border-neutral-100 p-3 mb-3">
                 <p className="text-xs text-neutral-500">Signed in</p>
-                <p className="mt-1 text-sm font-medium text-neutral-900 truncate">{userEmail}</p>
+                <p className="mt-1 text-sm font-medium text-neutral-900 truncate">
+                  {userName ?? userEmail}
+                </p>
                 <p className="mt-1 text-xs text-neutral-500">Role: {role ?? "STAFF"}</p>
               </div>
 
