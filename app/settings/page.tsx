@@ -419,7 +419,7 @@ export default function SettingsOverview() {
                 <div>
                   <div className="text-sm font-semibold text-neutral-900">Admin note</div>
                   <p className="mt-1 text-sm text-neutral-600">
-                    For stronger protection, enable Supabase MFA (TOTP) for your admin account in your Auth settings.
+                    If you have users who forget their passwords, you can create reset links for them in the <Link href="/admin/users" className="text-emerald-700 hover:underline">Admin → Users</Link> page.
                   </p>
                 </div>
               </div>
