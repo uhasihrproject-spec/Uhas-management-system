@@ -124,7 +124,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Activity */}
-      <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-5">
+      <div className="mt-8 grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 gap-5">
         <div className="lg:col-span-3 rounded-3xl bg-white ring-1 ring-neutral-200/70 overflow-hidden">
           <div className="p-5 sm:p-6 border-b border-neutral-200/70">
             <div className="flex items-center justify-between gap-3">

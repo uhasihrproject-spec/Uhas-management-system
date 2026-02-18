@@ -12,24 +12,35 @@ function pickFirstName(nameOrEmail: string | null) {
   return token.charAt(0).toUpperCase() + token.slice(1);
 }
 
-function useTypewriter(text: string, active: boolean, speedMs = 38) {
+function useTypewriter(text: string, active: boolean, speedMs = 50) {
   const [out, setOut] = useState("");
+  const [showCursor, setShowCursor] = useState(true);
 
   useEffect(() => {
-    if (!active) return;
+    if (!active) {
+      setOut("");
+      setShowCursor(true);
+      return;
+    }
+
     setOut("");
+    setShowCursor(true);
 
     let i = 0;
-    const id = window.setInterval(() => {
+    const typeInterval = window.setInterval(() => {
       i += 1;
       setOut(text.slice(0, i));
-      if (i >= text.length) window.clearInterval(id);
-    }, Math.max(18, speedMs));
+      
+      if (i >= text.length) {
+        window.clearInterval(typeInterval);
+        window.setTimeout(() => setShowCursor(false), 800);
+      }
+    }, speedMs);
 
-    return () => window.clearInterval(id);
+    return () => window.clearInterval(typeInterval);
   }, [text, active, speedMs]);
 
-  return out;
+  return { text: out, showCursor };
 }
 
 export default function IntroOverlay({
@@ -48,14 +59,25 @@ export default function IntroOverlay({
   const rafRef = useRef<number | null>(null);
 
   const welcome = useMemo(() => {
-  if (!isAuthed) return { base: "Welcome", name: "" };
-  const fn = pickFirstName(displayName);
-  return fn ? { base: "Welcome,", name: fn } : { base: "Welcome", name: "" };
-}, [isAuthed, displayName]);
+    if (!isAuthed) return { base: "Welcome", name: "" };
+    const fn = pickFirstName(displayName);
+    return fn ? { base: "Welcome,", name: fn } : { base: "Welcome", name: "" };
+  }, [isAuthed, displayName]);
 
-const typedName = useTypewriter(welcome.name, phase >= 4 && phase < 6, 40);
+  const { text: typedName, showCursor } = useTypewriter(
+    welcome.name, 
+    phase >= 4 && phase < 6, 
+    75
+  );
 
-  // global handoff marker for app settle animation
+  // Skip function
+  const handleSkip = () => {
+    document.documentElement.dataset.intro = "done";
+    setClosing(true);
+    window.setTimeout(() => setVisible(false), 650);
+  };
+
+  // global handoff marker
   useEffect(() => {
     document.documentElement.dataset.intro = "playing";
     return () => {
@@ -63,17 +85,17 @@ const typedName = useTypewriter(welcome.name, phase >= 4 && phase < 6, 40);
     };
   }, []);
 
-  // timeline phases (same logic)
+  // timeline phases
   useEffect(() => {
     const timeline = [
       { delay: 100, action: () => setPhase(1) },
-      { delay: 1300, action: () => setPhase(2) },
-      { delay: 1900, action: () => setPhase(3) },
-      { delay: 3500, action: () => setPhase(4) },
-      { delay: 4300, action: () => setPhase(5) },
-      { delay: 5900, action: () => setPhase(6) },
-      { delay: 6200, action: () => setClosing(true) },
-      { delay: 6900, action: () => setVisible(false) },
+      { delay: 1400, action: () => setPhase(2) },
+      { delay: 2000, action: () => setPhase(3) },
+      { delay: 3600, action: () => setPhase(4) },
+      { delay: 4400, action: () => setPhase(5) },
+      { delay: 6200, action: () => setPhase(6) },
+      { delay: 6500, action: () => setClosing(true) },
+      { delay: 7200, action: () => setVisible(false) },
     ];
     const timeouts = timeline.map(({ delay, action }) =>
       window.setTimeout(action, delay)
@@ -81,7 +103,7 @@ const typedName = useTypewriter(welcome.name, phase >= 4 && phase < 6, 40);
     return () => timeouts.forEach(clearTimeout);
   }, []);
 
-  // when closing starts, allow app to settle in
+  // when closing starts
   useEffect(() => {
     if (!closing) return;
     document.documentElement.dataset.intro = "done";
@@ -90,18 +112,16 @@ const typedName = useTypewriter(welcome.name, phase >= 4 && phase < 6, 40);
   // ESC skip
   useEffect(() => {
     if (!visible) return;
+    
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        document.documentElement.dataset.intro = "done";
-        setClosing(true);
-        window.setTimeout(() => setVisible(false), 650);
-      }
+      if (e.key === "Escape") handleSkip();
     };
+    
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [visible]);
 
-  // pointer-follow spotlight + panel bend + subtle tilt (safe)
+  // pointer-follow effects
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
@@ -110,7 +130,6 @@ const typedName = useTypewriter(welcome.name, phase >= 4 && phase < 6, 40);
       window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
     if (reduced) return;
 
-    // defaults
     el.style.setProperty("--sx", "50%");
     el.style.setProperty("--sy", "42%");
     el.style.setProperty("--cx", "50%");
@@ -123,14 +142,13 @@ const typedName = useTypewriter(welcome.name, phase >= 4 && phase < 6, 40);
 
       rafRef.current = requestAnimationFrame(() => {
         const node = rootRef.current;
-        const box = contentRef.current;
-        if (!node || !box) return;
+        if (!node) return;
 
         const r = node.getBoundingClientRect();
         if (!r.width || !r.height) return;
 
-        const px = (clientX - r.left) / r.width; // 0..1
-        const py = (clientY - r.top) / r.height; // 0..1
+        const px = (clientX - r.left) / r.width;
+        const py = (clientY - r.top) / r.height;
 
         const sx = Math.max(0, Math.min(100, px * 100));
         const sy = Math.max(0, Math.min(100, py * 100));
@@ -140,9 +158,8 @@ const typedName = useTypewriter(welcome.name, phase >= 4 && phase < 6, 40);
         node.style.setProperty("--cx", `${sx}%`);
         node.style.setProperty("--cy", `${sy}%`);
 
-        // tiny tilt, max ~3deg
-        const ry = (px - 0.5) * 6;
-        const rx = (0.5 - py) * 6;
+        const ry = (px - 0.5) * 3;
+        const rx = (0.5 - py) * 3;
         node.style.setProperty("--rx", `${rx.toFixed(2)}deg`);
         node.style.setProperty("--ry", `${ry.toFixed(2)}deg`);
       });
@@ -154,7 +171,6 @@ const typedName = useTypewriter(welcome.name, phase >= 4 && phase < 6, 40);
     return () => {
       el.removeEventListener("pointermove", onMove as any);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
     };
   }, [visible]);
 
@@ -163,41 +179,42 @@ const typedName = useTypewriter(welcome.name, phase >= 4 && phase < 6, 40);
   return (
     <>
       <style jsx>{`
-        @keyframes blink {
-          0%,
-          100% {
-            opacity: 1;
-          }
-          50% {
-            opacity: 0.45;
-          }
+        @keyframes blink-cursor {
+          0%, 49% { opacity: 1; }
+          50%, 100% { opacity: 0; }
         }
 
-        @keyframes brand-in {
+        @keyframes blink-text {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+
+        @keyframes brand-float-in {
           0% {
-            transform: translateY(10px) scale(0.98);
+            transform: translateY(20px);
             opacity: 0;
-            filter: blur(10px);
+            filter: blur(8px);
           }
-          70% {
-            transform: translateY(0) scale(1.01);
+          60% {
+            transform: translateY(-4px);
             opacity: 1;
             filter: blur(0px);
           }
           100% {
-            transform: translateY(0) scale(1);
+            transform: translateY(0);
             opacity: 1;
+            filter: blur(0px);
           }
         }
 
-        @keyframes welcome-in {
+        @keyframes welcome-float-in {
           0% {
-            transform: translateY(8px) scale(0.99);
+            transform: translateY(16px);
             opacity: 0;
-            filter: blur(9px);
+            filter: blur(6px);
           }
           100% {
-            transform: translateY(0) scale(1);
+            transform: translateY(0);
             opacity: 1;
             filter: blur(0px);
           }
@@ -210,66 +227,39 @@ const typedName = useTypewriter(welcome.name, phase >= 4 && phase < 6, 40);
             filter: blur(0px);
           }
           100% {
-            transform: scale(1.1);
+            transform: scale(1.06);
             opacity: 0;
-            filter: blur(14px);
+            filter: blur(12px);
           }
         }
 
-        @keyframes grain-animate {
-          0%,
-          100% {
-            transform: translate(0, 0);
-          }
-          10% {
-            transform: translate(-3%, -2%);
-          }
-          20% {
-            transform: translate(-6%, 2%);
-          }
-          30% {
-            transform: translate(3%, -6%);
-          }
-          40% {
-            transform: translate(-2%, 8%);
-          }
-          50% {
-            transform: translate(-6%, 2%);
-          }
-          60% {
-            transform: translate(8%, 0);
-          }
-          70% {
-            transform: translate(0, 6%);
-          }
-          80% {
-            transform: translate(-8%, 0);
-          }
-          90% {
-            transform: translate(6%, 2%);
-          }
+        @keyframes grain-subtle {
+          0%, 100% { transform: translate(0, 0); }
+          25% { transform: translate(-2%, -1%); }
+          50% { transform: translate(-3%, 1%); }
+          75% { transform: translate(2%, -2%); }
         }
 
-        @keyframes shine {
+        @keyframes shine-sweep {
           0% {
-            transform: translateX(-140%) rotate(18deg);
+            transform: translateX(-100%) skewX(-15deg);
             opacity: 0;
           }
           20% {
-            opacity: 0.32;
+            opacity: 0.5;
           }
           100% {
-            transform: translateX(140%) rotate(18deg);
+            transform: translateX(200%) skewX(-15deg);
             opacity: 0;
           }
         }
 
-        @keyframes underline {
+        @keyframes underline-draw {
           0% {
             transform: scaleX(0);
             opacity: 0;
           }
-          40% {
+          50% {
             opacity: 1;
           }
           100% {
@@ -278,63 +268,72 @@ const typedName = useTypewriter(welcome.name, phase >= 4 && phase < 6, 40);
           }
         }
 
+        @keyframes float-gentle {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-3px); }
+        }
+
+        @keyframes pulse-glow {
+          0%, 100% { 
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+          }
+          50% { 
+            box-shadow: 0 8px 24px rgba(16, 185, 129, 0.12);
+          }
+        }
+
+        @keyframes fade-in-up {
+          0% {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
         .grain {
-          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulance type='fractalNoise' baseFrequency='3' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-          opacity: 0.014;
-          animation: grain-animate 9s steps(10) infinite;
+          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='3' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+          opacity: 0.01;
+          animation: grain-subtle 12s ease-in-out infinite;
         }
 
         .spotlight {
           background: radial-gradient(
-            640px 470px at var(--sx, 50%) var(--sy, 42%),
-            rgba(16, 185, 129, 0.08),
-            rgba(245, 158, 11, 0.06),
-            rgba(255, 255, 255, 0) 62%
+            min(80vw, 700px) min(60vh, 500px) at var(--sx, 50%) var(--sy, 42%),
+            rgba(16, 185, 129, 0.05),
+            rgba(245, 158, 11, 0.03),
+            rgba(255, 255, 255, 0) 70%
           );
         }
 
         .seamGlow {
-          background: linear-gradient(
-            to bottom,
-            transparent,
-            rgba(0, 0, 0, 0.1),
-            transparent
-          );
-          opacity: 0.12;
-        }
-
-        /* panel bend follows pointer */
-        .panel-bend-left {
-          clip-path: ellipse(120% 85% at calc(var(--cx, 50%) + 30%) var(--cy, 50%));
-        }
-        .panel-bend-right {
-          clip-path: ellipse(120% 85% at calc(var(--cx, 50%) - 30%) var(--cy, 50%));
+          background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.06), transparent);
+          opacity: 0.2;
         }
 
         .panel-sheen-left {
           background: radial-gradient(
-            520px 360px at var(--cx, 50%) var(--cy, 50%),
-            rgba(255, 255, 255, 0.34),
-            rgba(255, 255, 255, 0) 55%
+            min(70vw, 600px) min(50vh, 400px) at var(--cx, 50%) var(--cy, 50%),
+            rgba(255, 255, 255, 0.25),
+            rgba(255, 255, 255, 0) 65%
           );
-          opacity: 0.32;
         }
+        
         .panel-sheen-right {
           background: radial-gradient(
-            520px 360px at var(--cx, 50%) var(--cy, 50%),
-            rgba(255, 255, 255, 0.26),
-            rgba(255, 255, 255, 0) 55%
+            min(70vw, 600px) min(50vh, 400px) at var(--cx, 50%) var(--cy, 50%),
+            rgba(255, 255, 255, 0.2),
+            rgba(255, 255, 255, 0) 65%
           );
-          opacity: 0.28;
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .grain {
-            animation: none !important;
-          }
-          .panel-bend-left,
-          .panel-bend-right {
-            clip-path: none !important;
+          *, *::before, *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
           }
         }
       `}</style>
@@ -342,7 +341,7 @@ const typedName = useTypewriter(welcome.name, phase >= 4 && phase < 6, 40);
       <div
         ref={rootRef}
         className={[
-          "fixed inset-0 z-50 overflow-hidden bg-white",
+          "fixed inset-0 z-[9999] overflow-hidden bg-white",
           "transition-opacity duration-700 ease-out",
           closing ? "opacity-0" : "opacity-100",
         ].join(" ")}
@@ -353,43 +352,46 @@ const typedName = useTypewriter(welcome.name, phase >= 4 && phase < 6, 40);
         {/* Left panel */}
         <div
           className={[
-            "absolute inset-y-0 left-0 transition-[width] duration-[1100ms] ease-[cubic-bezier(.2,.9,.2,1)]",
+            "absolute inset-y-0 left-0",
+            "transition-all duration-[1200ms] ease-[cubic-bezier(0.16,1,0.3,1)]",
             phase >= 1 ? "w-1/2" : "w-0",
           ].join(" ")}
         >
           <div
             className={[
-              "w-full h-full bg-gradient-to-r from-emerald-100/55 via-emerald-50/35 to-transparent rounded-r-[56px]",
-              "transition-opacity duration-600",
+              "w-full h-full bg-gradient-to-r from-emerald-100/45 via-emerald-50/25 to-transparent",
+              "rounded-r-[clamp(32px,10vw,80px)]",
+              "transition-opacity duration-700 ease-out",
               phase >= 2 ? "opacity-0" : "opacity-100",
-              "panel-bend-left",
             ].join(" ")}
           />
-          <div className="pointer-events-none absolute inset-0 panel-sheen-left rounded-r-[56px]" />
+          <div className="pointer-events-none absolute inset-0 panel-sheen-left rounded-r-[clamp(32px,10vw,80px)]" />
         </div>
 
         {/* Right panel */}
         <div
           className={[
-            "absolute inset-y-0 right-0 transition-[width] duration-[1100ms] ease-[cubic-bezier(.2,.9,.2,1)]",
+            "absolute inset-y-0 right-0",
+            "transition-all duration-[1200ms] ease-[cubic-bezier(0.16,1,0.3,1)]",
             phase >= 1 ? "w-1/2" : "w-0",
           ].join(" ")}
         >
           <div
             className={[
-              "w-full h-full bg-gradient-to-l from-amber-100/45 via-amber-50/30 to-transparent rounded-l-[56px]",
-              "transition-opacity duration-600",
+              "w-full h-full bg-gradient-to-l from-amber-100/35 via-amber-50/20 to-transparent",
+              "rounded-l-[clamp(32px,10vw,80px)]",
+              "transition-opacity duration-700 ease-out",
               phase >= 2 ? "opacity-0" : "opacity-100",
-              "panel-bend-right",
             ].join(" ")}
           />
-          <div className="pointer-events-none absolute inset-0 panel-sheen-right rounded-l-[56px]" />
+          <div className="pointer-events-none absolute inset-0 panel-sheen-right rounded-l-[clamp(32px,10vw,80px)]" />
         </div>
 
         {/* Seam */}
         <div
           className={[
-            "absolute inset-y-0 left-1/2 -translate-x-1/2 w-px transition-opacity duration-400",
+            "absolute inset-y-0 left-1/2 -translate-x-1/2 w-px",
+            "transition-opacity duration-500 ease-out",
             phase >= 1 && phase < 2 ? "opacity-100" : "opacity-0",
           ].join(" ")}
         >
@@ -397,58 +399,63 @@ const typedName = useTypewriter(welcome.name, phase >= 4 && phase < 6, 40);
         </div>
 
         {/* Center content */}
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center justify-center px-4 sm:px-6">
           <div
             ref={contentRef}
+            className="w-full max-w-2xl"
             style={{
               transform:
                 phase >= 2 && phase < 6
-                  ? `perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg))`
+                  ? `perspective(1400px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg))`
                   : "none",
-              transition: "transform 180ms ease-out",
+              transition: "transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
             }}
           >
             {/* Brand view */}
             <div
-              className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transition-all duration-700 ${
+              className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full transition-all duration-800 ease-out ${
                 phase >= 3 && phase < 4
-                  ? "opacity-100 scale-100"
+                  ? "opacity-100"
                   : phase >= 4
-                  ? "opacity-0 scale-95"
-                  : "opacity-0 scale-110"
+                  ? "opacity-0"
+                  : "opacity-0"
               }`}
               style={{
                 animation:
                   phase >= 3 && phase < 4
-                    ? "brand-in 900ms cubic-bezier(.2,.9,.2,1) both"
+                    ? "brand-float-in 1000ms cubic-bezier(0.16, 1, 0.3, 1) forwards"
                     : "none",
               }}
             >
-              <div className="flex flex-col items-center gap-4">
-                <div className="relative w-[72px] h-[72px] rounded-2xl bg-white border border-neutral-200 shadow-sm overflow-hidden p-2">
+              <div className="flex flex-col items-center gap-5">
+                <div 
+                  className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-white border border-neutral-200 overflow-hidden p-2.5"
+                  style={{
+                    animation: phase >= 3 && phase < 4 ? "float-gentle 4s ease-in-out infinite, pulse-glow 3s ease-in-out infinite" : "none",
+                  }}
+                >
                   <Image
                     src="/logo/Uhas.png"
                     alt="UHAS Logo"
-                    width={72}
-                    height={72}
+                    width={96}
+                    height={96}
                     className="object-contain w-full h-full"
                     priority
                   />
                   <div
-                    className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/2 bg-gradient-to-r from-transparent via-white/55 to-transparent"
+                    className="pointer-events-none absolute inset-y-0 -left-full w-full bg-gradient-to-r from-transparent via-white/50 to-transparent"
                     style={{
                       animation:
-                        phase >= 3 && phase < 4 ? "shine 1100ms ease-out 140ms both" : "none",
-                      opacity: phase >= 3 && phase < 4 ? 1 : 0,
+                        phase >= 3 && phase < 4 ? "shine-sweep 1400ms ease-out 200ms forwards" : "none",
                     }}
                   />
                 </div>
 
-                <div className="text-center">
+                <div className="text-center px-4">
                   <h1 className="text-xl sm:text-2xl font-semibold text-neutral-800 tracking-tight">
                     UHAS Procurement
                   </h1>
-                  <p className="mt-1 text-xs sm:text-sm text-neutral-600 tracking-wide">
+                  <p className="mt-2 text-sm text-neutral-600 tracking-wide">
                     Records Registry System
                   </p>
                 </div>
@@ -457,58 +464,59 @@ const typedName = useTypewriter(welcome.name, phase >= 4 && phase < 6, 40);
 
             {/* Welcome view */}
             <div
-              className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transition-all duration-800 ${
-                phase >= 4 && phase < 6 ? "opacity-100 scale-100" : "opacity-0 scale-95"
+              className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full transition-all duration-900 ease-out ${
+                phase >= 4 && phase < 6 ? "opacity-100" : "opacity-0"
               }`}
               style={{
                 animation:
                   phase >= 4 && phase < 6
-                    ? "welcome-in 700ms cubic-bezier(.2,.9,.2,1) both"
+                    ? "welcome-float-in 800ms cubic-bezier(0.16, 1, 0.3, 1) forwards"
                     : phase >= 6
-                    ? "morph-out 800ms cubic-bezier(.2,.9,.2,1) both"
+                    ? "morph-out 900ms cubic-bezier(0.16, 1, 0.3, 1) forwards"
                     : "none",
               }}
             >
               <div
-                className="text-center"
+                className="text-center px-4"
                 style={{
-                  animation: phase >= 5 && phase < 6 ? "blink 0.9s ease-in-out 2" : "none",
+                  animation: phase >= 5 && phase < 6 ? "blink-text 1s ease-in-out 2" : "none",
                 }}
               >
-                <h1 className="text-2xl sm:text-4xl md:text-5xl font-semibold text-neutral-800 tracking-tight">
-                {welcome.base}{" "}
-                {welcome.name ? (
-                    <span className="relative inline-flex items-baseline">
-                    <span>{typedName}</span>
-                    {/* tiny caret, stops after finished */}
-                    <span
-                        className={[
-                        "ml-0.5 inline-block w-[2px] h-[0.9em] bg-neutral-300 align-middle",
-                        typedName.length < welcome.name.length ? "opacity-100" : "opacity-0",
-                        ].join(" ")}
-                        style={{
-                        animation:
-                            typedName.length < welcome.name.length
-                            ? "blink 0.85s ease-in-out infinite"
-                            : "none",
-                        }}
-                        aria-hidden="true"
-                    />
-                    </span>
-                ) : null}
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold text-neutral-800 tracking-tight leading-[1.15]">
+                  {welcome.base}
+                  {welcome.name && (
+                    <>
+                      {" "}
+                      <span className="relative inline-flex items-baseline">
+                        <span className="inline-block">{typedName}</span>
+                        <span
+                          className={[
+                            "ml-1 inline-block w-[2px] sm:w-[3px] h-[0.85em]",
+                            "bg-emerald-400 align-middle rounded-full",
+                            "transition-opacity duration-200",
+                            showCursor ? "opacity-100" : "opacity-0",
+                          ].join(" ")}
+                          style={{
+                            animation: showCursor ? "blink-cursor 1s step-end infinite" : "none",
+                          }}
+                          aria-hidden="true"
+                        />
+                      </span>
+                    </>
+                  )}
                 </h1>
 
-                <div className="mt-2 flex justify-center">
+                <div className="mt-4 sm:mt-5 flex justify-center">
                   <div
-                    className="h-[2px] w-28 sm:w-36 bg-neutral-200 origin-left"
+                    className="h-[3px] w-24 sm:w-36 bg-gradient-to-r from-emerald-200 via-emerald-300 to-amber-200 origin-left rounded-full"
                     style={{
                       animation:
-                        phase >= 4 && phase < 6 ? "underline 700ms ease-out 120ms both" : "none",
+                        phase >= 4 && phase < 6 ? "underline-draw 900ms cubic-bezier(0.16, 1, 0.3, 1) 100ms forwards" : "none",
                     }}
                   />
                 </div>
 
-                <p className="mt-3 text-xs sm:text-sm text-neutral-600">
+                <p className="mt-4 text-sm sm:text-base text-neutral-600 max-w-md mx-auto">
                   Procurement Records Registry
                 </p>
               </div>
@@ -516,9 +524,36 @@ const typedName = useTypewriter(welcome.name, phase >= 4 && phase < 6, 40);
           </div>
         </div>
 
-        {/* White blend out */}
+        {/* Skip button - centered and fixed */}
+        <div className="absolute bottom-0 left-0 right-0 flex justify-center pb-6 sm:pb-8 pointer-events-none">
+          <button
+            onClick={handleSkip}
+            type="button"
+            className={[
+              "pointer-events-auto",
+              "flex items-center gap-2 px-5 py-3 rounded-full",
+              "bg-white/90 backdrop-blur-md border border-neutral-200 shadow-lg",
+              "hover:shadow-xl hover:scale-105 active:scale-95",
+              "transition-all duration-300",
+              phase >= 1 && phase < 6 ? "opacity-100" : "opacity-0",
+            ].join(" ")}
+            style={{
+              animation: phase >= 1 && phase < 6 ? "fade-in-up 600ms cubic-bezier(0.16, 1, 0.3, 1) 800ms both" : "none",
+            }}
+          >
+            <svg className="w-4 h-4 text-neutral-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+            </svg>
+            <span className="text-sm font-medium text-neutral-700">Skip intro</span>
+            <kbd className="hidden sm:inline-flex px-2 py-0.5 text-xs font-semibold text-neutral-500 bg-neutral-50 border border-neutral-200 rounded">
+              ESC
+            </kbd>
+          </button>
+        </div>
+
+        {/* Final white blend */}
         <div
-          className={`absolute inset-0 bg-white transition-opacity duration-800 ${
+          className={`absolute inset-0 bg-white transition-opacity duration-900 ease-out pointer-events-none ${
             phase >= 6 ? "opacity-100" : "opacity-0"
           }`}
         />
