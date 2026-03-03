@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 type Conf = "PUBLIC" | "INTERNAL" | "CONFIDENTIAL";
 
@@ -113,7 +114,8 @@ export async function POST(req: Request) {
       user_id: uid,
     }));
 
-    const { error: rErr } = await supabase.from("letter_recipients").insert(rows);
+    const admin = supabaseAdmin();
+    const { error: rErr } = await admin.from("letter_recipients").insert(rows);
 
     if (rErr) {
       // optional: rollback the letter if recipients fail

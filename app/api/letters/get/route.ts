@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getLetterAccess } from "@/lib/letters/access";
 
 export async function GET(req: Request) {
@@ -15,7 +16,9 @@ export async function GET(req: Request) {
   const access = await getLetterAccess(auth.user.id, letterId);
   if (!access.allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { data: letter, error } = await supabase
+  const admin = supabaseAdmin();
+
+  const { data: letter, error } = await admin
     .from("letters")
     .select("id,file_name,file_path,mime_type,updated_at")
     .eq("id", letterId)

@@ -1,6 +1,7 @@
 // app/letters/[id]/page.tsx
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import LetterViewer from "./LetterViewer";
 import { getLetterAccess } from "@/lib/letters/access";
 
@@ -76,7 +77,9 @@ export default async function LetterDetailsPage({
     );
   }
 
-  const { data: letter, error } = await supabase
+  const admin = supabaseAdmin();
+
+  const { data: letter, error } = await admin
     .from("letters")
     .select(
       "id,ref_no,direction,date_received,date_on_letter,sender_name,sender_org,recipient_department,subject,summary,category,confidentiality,status,tags,created_at,file_path,file_name,mime_type"
@@ -109,24 +112,14 @@ export default async function LetterDetailsPage({
     ]);
   }
 
-  let role: string | null = null;
+  const canEdit = access.role === "ADMIN" || access.role === "SECRETARY";
 
-  if (auth.user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", auth.user.id)
-      .maybeSingle();
-
-    role = profile?.role ?? null;
-  }
-
-  const canEdit = role === "ADMIN" || role === "SECRETARY";
 
   // Load recipients only when CONFIDENTIAL
   let recipients: UserPick[] = [];
   if (letter.confidentiality === "CONFIDENTIAL") {
-    const { data: links } = await supabase
+    const admin = supabaseAdmin();
+    const { data: links } = await admin
       .from("letter_recipients")
       .select("user_id")
       .eq("letter_id", letter.id);
@@ -134,7 +127,7 @@ export default async function LetterDetailsPage({
     const ids = (links || []).map((r: any) => r.user_id).filter(Boolean);
 
     if (ids.length) {
-      const { data: users } = await supabase
+      const { data: users } = await admin
         .from("profiles")
         .select("id, full_name, department, role")
         .in("id", ids);
@@ -232,13 +225,13 @@ export default async function LetterDetailsPage({
 
               {/* Optional: show the exact count for confidential */}
               {conf === "CONFIDENTIAL" ? (
-                <span className="text-xs text-neutral-600">
+                <span className="text-xs text-neutral-800">
                   {recipients.length ? `${recipients.length} recipient(s)` : ""}
                 </span>
               ) : null}
             </div>
 
-            <div className="mt-2 text-sm text-neutral-900">{visibilityMsg}</div>
+            <div className="mt-2 text-sm text-neutral-950">{visibilityMsg}</div>
 
             {/* Confidential: show names without spoiling UI */}
             {conf === "CONFIDENTIAL" ? (
@@ -260,7 +253,7 @@ export default async function LetterDetailsPage({
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-neutral-600">No recipients found.</p>
+                    <p className="text-sm text-neutral-800">No recipients found yet. Please assign recipients in Edit Letter.</p>
                   )}
                 </div>
               </details>
