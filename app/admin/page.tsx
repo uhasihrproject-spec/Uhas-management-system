@@ -37,7 +37,7 @@ export default async function AdminHomePage() {
         <div className="mt-6 rounded-3xl bg-white p-6 ring-1 ring-red-200/70">
           <p className="text-sm text-red-700 font-medium">Admin access only.</p>
 
-          {/* ✅ Debug info so you see exactly what Supabase returned */}
+          {/*  Debug info so you see exactly what Supabase returned */}
           <div className="mt-4 rounded-2xl bg-neutral-50 p-4 ring-1 ring-neutral-200/70">
             <p className="text-xs text-neutral-600">Debug</p>
             <p className="mt-2 text-sm text-neutral-800">

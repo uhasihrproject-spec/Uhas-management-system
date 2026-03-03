@@ -136,7 +136,7 @@ export default function LettersTable({ rows }: { rows: Row[] }) {
             {/* Left */}
             <div className="min-w-0">
               <div className="text-sm font-semibold text-neutral-900">Letters registry</div>
-              <div className="mt-1 text-sm text-neutral-600">
+              <div className="mt-1 text-sm text-neutral-900">
                 Showing <span className="font-medium text-neutral-900">{total}</span> letters
               </div>
             </div>
@@ -216,7 +216,7 @@ export default function LettersTable({ rows }: { rows: Row[] }) {
                       <div className="text-sm font-semibold text-neutral-900 truncate">
                         {r.ref_no ?? "(no ref)"}
                       </div>
-                      <div className="mt-1 text-xs text-neutral-500">
+                      <div className="mt-1 text-xs text-neutral-900">
                         {r.date_received ?? "—"} • {r.recipient_department ?? "—"}
                       </div>
                     </div>
@@ -228,12 +228,12 @@ export default function LettersTable({ rows }: { rows: Row[] }) {
                   </div>
 
                   <div className="mt-3">
-                    <div className="text-xs text-neutral-500">Sender</div>
+                    <div className="text-xs text-neutral-900">Sender</div>
                     <div className="text-sm text-neutral-900">{r.sender_name ?? "—"}</div>
                   </div>
 
                   <div className="mt-3">
-                    <div className="text-xs text-neutral-500">Subject</div>
+                    <div className="text-xs text-neutral-900">Subject</div>
                     <div className="text-sm text-neutral-900 line-clamp-2">{r.subject ?? "—"}</div>
                   </div>
 
@@ -246,7 +246,7 @@ export default function LettersTable({ rows }: { rows: Row[] }) {
             })}
 
             {!shown.length ? (
-              <div className="rounded-2xl border border-neutral-200/70 p-6 text-sm text-neutral-600">
+              <div className="rounded-2xl border border-neutral-200/70 p-6 text-sm text-neutral-950">
                 No letters yet.
               </div>
             ) : null}
@@ -257,7 +257,7 @@ export default function LettersTable({ rows }: { rows: Row[] }) {
             <div className="overflow-x-auto rounded-2xl ring-1 ring-neutral-200/70">
               <table className="min-w-full w-full text-sm bg-white">
                 <thead className="bg-white sticky top-0">
-                  <tr className="text-left text-xs uppercase tracking-wide text-neutral-500 border-b border-neutral-200/70">
+                  <tr className="text-left text-xs uppercase tracking-wide text-neutral-900 border-b border-neutral-200/70">
                     <th className="py-3 px-4 whitespace-nowrap">Ref No</th>
                     <th className="py-3 px-4 whitespace-nowrap">Direction</th>
                     <th className="py-3 px-4 whitespace-nowrap">Received</th>
@@ -265,7 +265,7 @@ export default function LettersTable({ rows }: { rows: Row[] }) {
                     <th className="py-3 px-4 hidden lg:table-cell whitespace-nowrap">Department</th>
                     <th className="py-3 px-4 whitespace-nowrap">Subject</th>
                     <th className="py-3 px-4 whitespace-nowrap">Status</th>
-                    {/* ✅ show from lg not xl */}
+                    {/*  show from lg not xl */}
                     <th className="py-3 px-4 hidden lg:table-cell whitespace-nowrap">Conf.</th>
                   </tr>
                 </thead>
@@ -316,7 +316,7 @@ export default function LettersTable({ rows }: { rows: Row[] }) {
 
                   {!shown.length ? (
                     <tr>
-                      <td colSpan={8} className="py-10 px-4 text-neutral-500 text-center">
+                      <td colSpan={8} className="py-10 px-4 text-neutral-900 text-center">
                         No letters yet.
                       </td>
                     </tr>
@@ -326,7 +326,7 @@ export default function LettersTable({ rows }: { rows: Row[] }) {
             </div>
 
             {/* Desktop note if conf is hidden on smaller screens */}
-            <div className="mt-3 text-xs text-neutral-500">
+            <div className="mt-3 text-xs text-neutral-900">
               Tip: “Conf.” shows from <span className="font-medium">lg</span> screens and above.
             </div>
           </div>

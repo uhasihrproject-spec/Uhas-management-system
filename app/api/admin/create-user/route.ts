@@ -49,7 +49,7 @@ export async function POST(req: Request) {
   email_confirm: true,
   user_metadata: {
     role,
-    full_name,          // ✅ IMPORTANT
+    full_name,          //  IMPORTANT
     department,         // optional
   },
 });

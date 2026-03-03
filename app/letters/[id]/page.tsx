@@ -4,6 +4,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import LetterViewer from "./LetterViewer";
 import { getLetterAccess } from "@/lib/letters/access";
+import { ArrowLeft, ChevronDown, ShieldCheck, Users } from "lucide-react";
 
 type Direction = "INCOMING" | "OUTGOING";
 type Conf = "PUBLIC" | "INTERNAL" | "CONFIDENTIAL";
@@ -67,8 +68,8 @@ export default async function LetterDetailsPage({
   if (!access.allowed) {
     return (
       <div className="p-8">
-        <Link href="/letters" className="text-sm text-emerald-700 hover:underline">
-          ← Back to Letters
+        <Link href="/letters" className="inline-flex items-center gap-1.5 text-sm text-emerald-800 hover:text-emerald-900 hover:underline">
+          <ArrowLeft className="h-4 w-4" /> Back to Letters
         </Link>
         <div className="mt-6 rounded-3xl bg-white p-6 ring-1 ring-red-200/70">
           <p className="text-sm text-red-700">You are not allowed to view this letter.</p>
@@ -90,8 +91,8 @@ export default async function LetterDetailsPage({
   if (error || !letter) {
     return (
       <div className="p-8">
-        <Link href="/letters" className="text-sm text-emerald-700 hover:underline">
-          ← Back to Letters
+        <Link href="/letters" className="inline-flex items-center gap-1.5 text-sm text-emerald-800 hover:text-emerald-900 hover:underline">
+          <ArrowLeft className="h-4 w-4" /> Back to Letters
         </Link>
         <div className="mt-6 rounded-3xl bg-white p-6 ring-1 ring-red-200/70">
           <p className="text-sm text-red-700">{error?.message || "Letter not found."}</p>
@@ -181,11 +182,11 @@ export default async function LetterDetailsPage({
     <div className="p-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <Link href="/letters" className="text-sm text-emerald-700 hover:underline">
-            ← Back to Letters
+          <Link href="/letters" className="inline-flex items-center gap-1.5 text-sm text-emerald-800 hover:text-emerald-900 hover:underline">
+            <ArrowLeft className="h-4 w-4" /> Back to Letters
           </Link>
 
-          <p className="mt-4 text-xs uppercase tracking-[0.25em] text-neutral-500">
+          <p className="mt-4 text-xs uppercase tracking-[0.25em] text-neutral-900">
             UHAS Procurement Directorate
           </p>
           <h1 className="mt-2 text-2xl font-semibold">{letter.ref_no}</h1>
@@ -208,12 +209,9 @@ export default async function LetterDetailsPage({
       {/* Visibility banner (no emojis) */}
       <div className={`mt-6 rounded-3xl p-4 sm:p-5 ring-1 ${tone.ring} ${tone.bg}`}>
         <div className="flex items-start gap-3">
-          <div className="mt-0.5 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ring-1 ${tone.badge}">
-            {/* (string interpolation inside className doesn't work like this in JSX; keep it simple below) */}
-          </div>
-
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-neutral-900" />
               <span
                 className={[
                   "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ring-1",
@@ -235,12 +233,14 @@ export default async function LetterDetailsPage({
 
             {/* Confidential: show names without spoiling UI */}
             {conf === "CONFIDENTIAL" ? (
-              <details className="mt-3">
-                <summary className="text-sm font-semibold text-emerald-800 hover:text-emerald-900 cursor-pointer select-none">
+              <details className="group mt-3">
+                <summary className="list-none inline-flex items-center gap-2 text-sm font-semibold text-emerald-900 hover:text-emerald-950 cursor-pointer select-none">
+                  <Users className="h-4 w-4" />
                   View recipients
+                  <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
                 </summary>
 
-                <div className="mt-3 rounded-2xl bg-white/70 ring-1 ring-black/5 p-3">
+                <div className="mt-3 rounded-2xl bg-white/80 ring-1 ring-black/10 p-3">
                   {recipients.length ? (
                     <div className="flex flex-wrap gap-2">
                       {recipients.map((u) => (
@@ -268,19 +268,19 @@ export default async function LetterDetailsPage({
             <h2 className="text-sm font-semibold">Details</h2>
             <dl className="mt-4 space-y-3 text-sm">
               <div className="flex justify-between gap-4">
-                <dt className="text-neutral-500">Date received</dt>
+                <dt className="text-neutral-900">Date received</dt>
                 <dd className="font-medium text-right">{letter.date_received}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-neutral-500">Sender</dt>
+                <dt className="text-neutral-900">Sender</dt>
                 <dd className="font-medium text-right">{letter.sender_name}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-neutral-500">Department</dt>
+                <dt className="text-neutral-900">Department</dt>
                 <dd className="font-medium text-right">{deptLabel(letter.recipient_department)}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-neutral-500">Confidentiality</dt>
+                <dt className="text-neutral-900">Confidentiality</dt>
                 <dd className="font-medium text-right">{letter.confidentiality}</dd>
               </div>
             </dl>
@@ -295,7 +295,7 @@ export default async function LetterDetailsPage({
             </div>
 
             {letter.summary && String(letter.summary).length > 260 ? (
-              <p className="mt-2 text-xs text-neutral-500">Scroll to view full summary.</p>
+              <p className="mt-2 text-xs text-neutral-800">Scroll to view full summary.</p>
             ) : null}
           </div>
         </div>

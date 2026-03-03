@@ -383,7 +383,7 @@ export default function UsersAdminClient({ initialUsers }: { initialUsers: UserR
 
       const json = await res.json();
       if (!res.ok) throw new Error(json?.detail || json?.error || "Failed to save");
-      flashOk("Profile saved ✅");
+      flashOk("Profile saved successfully.");
     } catch (e: any) {
       setErr(e?.message || "Failed to save");
     } finally {
@@ -411,7 +411,7 @@ export default function UsersAdminClient({ initialUsers }: { initialUsers: UserR
       if (!res.ok) throw new Error(json?.detail || json?.error || "Failed to update email");
 
       setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, email } : x)));
-      flashOk("Email updated ✅");
+      flashOk("Email updated successfully.");
     } catch (e: any) {
       setErr(e?.message || "Failed to update email");
     } finally {
@@ -442,7 +442,7 @@ export default function UsersAdminClient({ initialUsers }: { initialUsers: UserR
       if (!res.ok) throw new Error(json?.detail || json?.error || `Delete failed (${res.status})`);
 
       markLeaving(u.id);
-      flashOk("User deleted ✅");
+      flashOk("User deleted successfully.");
     } catch (e: any) {
       setErr(e?.message || "Delete failed");
     } finally {
