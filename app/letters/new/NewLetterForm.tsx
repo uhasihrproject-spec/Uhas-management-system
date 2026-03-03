@@ -272,7 +272,7 @@ export default function NewLetterForm() {
         category: category || null,
         confidentiality,
         status,
-        recipient_department: finalDept, // ✅ Always filled based on direction
+        recipient_department: finalDept, //  Always filled based on direction
         recipient_user_ids: confidentiality === "CONFIDENTIAL" ? selectedUsers.map((u) => u.id) : [],
         tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
         file_bucket: upJson.fileBucket,

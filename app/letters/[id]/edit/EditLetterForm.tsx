@@ -333,6 +333,19 @@ export default function EditLetterForm({ initial }: { initial: LetterEditInitial
     setSelectedUsers((prev) => prev.filter((u) => u.id !== id));
   }
 
+
+  async function syncRecipients(endpoint: string, payload: Record<string, unknown>) {
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(payload),
+    });
+
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.error || "Failed to update recipients");
+  }
+
   function computeFinalDept() {
     // INTERNAL always uses internalDept (matches your create page behaviour)
     if (confidentiality === "INTERNAL") return internalDept;
@@ -381,40 +394,20 @@ export default function EditLetterForm({ initial }: { initial: LetterEditInitial
       // Confidential recipients sync
       if (previousConfidentiality !== "CONFIDENTIAL" && confidentiality === "CONFIDENTIAL") {
         if (selectedUsers.length > 0) {
-          await fetch("/api/letters/recipients/add", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({
-              letter_id: initial.id,
-              user_ids: selectedUsers.map((u) => u.id),
-            }),
+          await syncRecipients("/api/letters/recipients/add", {
+            letter_id: initial.id,
+            user_ids: selectedUsers.map((u) => u.id),
           });
         }
       } else if (previousConfidentiality === "CONFIDENTIAL" && confidentiality !== "CONFIDENTIAL") {
-        await fetch("/api/letters/recipients/clear", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ letter_id: initial.id }),
-        });
+        await syncRecipients("/api/letters/recipients/clear", { letter_id: initial.id });
       } else if (confidentiality === "CONFIDENTIAL") {
-        await fetch("/api/letters/recipients/clear", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ letter_id: initial.id }),
-        });
+        await syncRecipients("/api/letters/recipients/clear", { letter_id: initial.id });
 
         if (selectedUsers.length > 0) {
-          await fetch("/api/letters/recipients/add", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({
-              letter_id: initial.id,
-              user_ids: selectedUsers.map((u) => u.id),
-            }),
+          await syncRecipients("/api/letters/recipients/add", {
+            letter_id: initial.id,
+            user_ids: selectedUsers.map((u) => u.id),
           });
         }
       }

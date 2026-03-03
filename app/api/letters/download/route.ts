@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabaseServer } from "@/lib/supabase/server";
+import { getLetterAccess } from "@/lib/letters/access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,15 +31,14 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // 2) Confirm letter exists & readable by this user (RLS enforced here)
-    const { data: letter, error: letterErr } = await supabase
-      .from("letters")
-      .select("id")
-      .eq("id", letterId)
-      .single();
+    // 2) Confirm caller can access this letter + exact file path
+    const access = await getLetterAccess(auth.user.id, letterId);
+    if (!access.allowed || !access.letter) {
+      return NextResponse.json({ error: access.reason || "Access denied" }, { status: 403 });
+    }
 
-    if (letterErr || !letter) {
-      return NextResponse.json({ error: "Letter not found" }, { status: 404 });
+    if (!access.letter.file_path || access.letter.file_path !== filePath) {
+      return NextResponse.json({ error: "Invalid file path" }, { status: 400 });
     }
 
     // 3) Service role client for storage download + audit

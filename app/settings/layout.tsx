@@ -11,7 +11,7 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
           Settings
         </h1>
 
-        {/* ✅ Quick tip FIRST */}
+        {/*  Quick tip FIRST */}
         <div className="mt-4 rounded-3xl bg-white ring-1 ring-neutral-200/70 p-5 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>

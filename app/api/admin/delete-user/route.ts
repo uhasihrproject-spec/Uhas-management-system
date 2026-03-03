@@ -55,7 +55,7 @@ export async function POST(req: Request) {
       // continue anyway
     }
 
-    // ✅ Step 1: delete profile row first
+    //  Step 1: delete profile row first
     // With your FK fix (ON DELETE SET NULL), this should not be blocked.
     const { error: profDelErr } = await admin.from("profiles").delete().eq("id", userId);
     if (profDelErr) {
@@ -72,7 +72,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ Step 2: delete auth user
+    //  Step 2: delete auth user
     const { error: authDelErr } = await admin.auth.admin.deleteUser(userId);
     if (authDelErr) {
       const info = normErr(authDelErr);
@@ -89,7 +89,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ Step 3: audit log entry (should still work; if it fails we don't break delete)
+    //  Step 3: audit log entry (should still work; if it fails we don't break delete)
     await admin.from("audit_logs").insert([
       {
         user_id: auth.user.id,
