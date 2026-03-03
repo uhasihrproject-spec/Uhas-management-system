@@ -115,6 +115,7 @@ function AddUserPopup({
   const [department, setDepartment] = useState("");
   const [role, setRole] = useState<Role>("STAFF");
   const [creating, setCreating] = useState(false);
+  const [localError, setLocalError] = useState("");
 
   function reset() {
     setEmail("");
@@ -122,21 +123,37 @@ function AddUserPopup({
     setFullName("");
     setDepartment("");
     setRole("STAFF");
+    setLocalError("");
   }
 
   async function create() {
     try {
       onError("");
+      setLocalError("");
+
+      const normalizedEmail = email.trim().toLowerCase();
+      const normalizedPassword = password.trim();
+      const normalizedName = fullName.trim();
+      const normalizedDepartment = department.trim();
+
+      if (!normalizedEmail || !isEmail(normalizedEmail)) {
+        throw new Error("Enter a valid email address.");
+      }
+
+      if (normalizedPassword.length < 8) {
+        throw new Error("Password must be at least 8 characters.");
+      }
+
       setCreating(true);
 
       const res = await fetch("/api/admin/create-user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email,
-          password,
-          full_name: fullName,
-          department,
+          email: normalizedEmail,
+          password: normalizedPassword,
+          full_name: normalizedName,
+          department: normalizedDepartment,
           role,
         }),
       });
@@ -146,9 +163,9 @@ function AddUserPopup({
 
       onCreated({
         id: json.userId,
-        email: email || null,
-        full_name: fullName || null,
-        department: department || null,
+        email: normalizedEmail || null,
+        full_name: normalizedName || null,
+        department: normalizedDepartment || null,
         role,
         created_at: new Date().toISOString(),
       });
@@ -156,13 +173,14 @@ function AddUserPopup({
       reset();
       setOpen(false);
     } catch (e: any) {
+      setLocalError(e?.message || "Failed to create user");
       onError(e?.message || "Failed to create user");
     } finally {
       setCreating(false);
     }
   }
 
-  const canCreate = !!email && isEmail(email) && password.length >= 8;
+  const canCreate = !!email.trim() && isEmail(email) && password.trim().length >= 8;
 
   return (
     <>
@@ -200,12 +218,14 @@ function AddUserPopup({
 
           <div className="md:col-span-2">
             <label className="text-xs font-medium text-neutral-700 mb-1.5 block">Temporary Password * (min 8 chars)</label>
-            <input className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="User can change this after first login" type="text" />
+            <input className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="User can change this after first login" type="password" />
           </div>
         </div>
 
+        {localError ? <p className="mt-4 text-sm text-red-700">{localError}</p> : null}
+
         <div className="mt-5 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-          <p className="text-xs text-neutral-600">
+          <p className="text-xs text-neutral-700">
             Tip: user can log in immediately. Ask them to change password after first sign-in.
           </p>
 
@@ -385,7 +405,7 @@ export default function UsersAdminClient({ initialUsers }: { initialUsers: UserR
       if (!res.ok) throw new Error(json?.detail || json?.error || "Failed to save");
       flashOk("Profile saved successfully.");
     } catch (e: any) {
-      setErr(e?.message || "Failed to save");
+      setErr(e?.message || "Could not save role/profile changes. Please refresh and try again.");
     } finally {
       setSavingId("");
     }
@@ -413,7 +433,7 @@ export default function UsersAdminClient({ initialUsers }: { initialUsers: UserR
       setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, email } : x)));
       flashOk("Email updated successfully.");
     } catch (e: any) {
-      setErr(e?.message || "Failed to update email");
+      setErr(e?.message || "Could not update email. It may already exist.");
     } finally {
       setEmailSavingId("");
     }

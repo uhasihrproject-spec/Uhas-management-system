@@ -1,12 +1,22 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
-function must(v: string | undefined, name: string) {
-  if (!v) throw new Error(`Missing env: ${name}`);
-  return v;
+function friendlyAuthError(e: any) {
+  const message = String(e?.message || "Failed to create user");
+  const lower = message.toLowerCase();
+
+  if (lower.includes("already") || lower.includes("registered") || lower.includes("duplicate")) {
+    return "Email already exists. Use another email address.";
+  }
+
+  if (lower.includes("password")) {
+    return "Password does not meet requirements. Use at least 8 characters.";
+  }
+
+  return message;
 }
 
 export async function POST(req: Request) {
@@ -14,7 +24,7 @@ export async function POST(req: Request) {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  // confirm caller is ADMIN (use profiles role here)
+  // confirm caller is ADMIN
   const { data: me, error: meErr } = await supabase
     .from("profiles")
     .select("role")
@@ -27,52 +37,61 @@ export async function POST(req: Request) {
   const body = await req.json();
   const email = String(body.email || "").trim().toLowerCase();
   const password = String(body.password || "");
-  const full_name = String(body.full_name || "").trim();
+  const full_name = String(body.full_name || "").trim() || null;
   const department = String(body.department || "").trim() || null;
   const role = String(body.role || "STAFF").toUpperCase();
 
   if (!email) return NextResponse.json({ error: "Email required" }, { status: 400 });
-  if (!password || password.length < 8)
+  if (!password || password.length < 8) {
     return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
-  if (!["ADMIN", "SECRETARY", "STAFF"].includes(role))
+  }
+
+  if (!role || !["ADMIN", "SECRETARY", "STAFF"].includes(role)) {
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+  }
 
-  const url = must(process.env.NEXT_PUBLIC_SUPABASE_URL, "NEXT_PUBLIC_SUPABASE_URL");
-  const serviceKey = must(process.env.SUPABASE_SERVICE_ROLE_KEY, "SUPABASE_SERVICE_ROLE_KEY");
+  const admin = supabaseAdmin();
 
-  const admin = createClient(url, serviceKey);
+  // quick pre-check to provide cleaner error before creating auth user
+  const { data: existingProfile, error: existingErr } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("email", email)
+    .maybeSingle();
 
-  // 1) Create auth user
+  if (!existingErr && existingProfile) {
+    return NextResponse.json({ error: "Email already exists. Use another email address." }, { status: 409 });
+  }
+
   const { data: created, error: createErr } = await admin.auth.admin.createUser({
-  email,
-  password,
-  email_confirm: true,
-  user_metadata: {
-    role,
-    full_name,          //  IMPORTANT
-    department,         // optional
-  },
-});
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { role, full_name, department },
+  });
 
   if (createErr || !created.user) {
-    return NextResponse.json({ error: createErr?.message || "Failed to create user" }, { status: 400 });
+    return NextResponse.json({ error: friendlyAuthError(createErr) }, { status: 400 });
   }
 
   const userId = created.user.id;
 
-  // 2) Create/update profile
-  const { error: profErr } = await admin.from("profiles").upsert({
-    id: userId,
-    full_name: full_name || null,
-    department,
-    role,
-  });
+  const { error: profErr } = await admin.from("profiles").upsert(
+    {
+      id: userId,
+      full_name,
+      department,
+      role,
+    },
+    { onConflict: "id" }
+  );
 
   if (profErr) {
+    // rollback auth user if profile insert fails to avoid half-created accounts
+    await admin.auth.admin.deleteUser(userId);
     return NextResponse.json({ error: profErr.message }, { status: 400 });
   }
 
-  // 3) Audit
   await admin.from("audit_logs").insert([
     {
       user_id: auth.user.id,
