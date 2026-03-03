@@ -1,23 +1,21 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
+import { getLetterAccess } from "@/lib/letters/access";
 
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
     const letter_id = url.searchParams.get("letter_id");
 
-    if (!letter_id) {
-      return NextResponse.json({ error: "letter_id is required" }, { status: 400 });
-    }
+    if (!letter_id) return NextResponse.json({ error: "letter_id is required" }, { status: 400 });
 
     const supabase = await supabaseServer();
-
     const { data: auth } = await supabase.auth.getUser();
-    if (!auth?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    if (!auth?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // 1️⃣ Get user IDs
+    const access = await getLetterAccess(auth.user.id, String(letter_id));
+    if (!access.allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
     const { data: links, error: linkErr } = await supabase
       .from("letter_recipients")
       .select("user_id")
@@ -25,12 +23,9 @@ export async function GET(req: Request) {
 
     if (linkErr) throw linkErr;
 
-    const ids = (links || []).map(r => r.user_id);
-    if (ids.length === 0) {
-      return NextResponse.json({ recipients: [] });
-    }
+    const ids = (links || []).map((r) => r.user_id);
+    if (ids.length === 0) return NextResponse.json({ recipients: [] });
 
-    // 2️⃣ Get user details
     const { data: users, error: userErr } = await supabase
       .from("profiles")
       .select("id, full_name, department, role")
@@ -39,11 +34,7 @@ export async function GET(req: Request) {
     if (userErr) throw userErr;
 
     return NextResponse.json({ recipients: users || [] });
-
   } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.message || "Failed to list recipients" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: e?.message || "Failed to list recipients" }, { status: 500 });
   }
 }

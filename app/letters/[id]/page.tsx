@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import LetterViewer from "./LetterViewer";
+import { getLetterAccess } from "@/lib/letters/access";
 
 type Direction = "INCOMING" | "OUTGOING";
 type Conf = "PUBLIC" | "INTERNAL" | "CONFIDENTIAL";
@@ -52,6 +53,29 @@ export default async function LetterDetailsPage({
 
   const supabase = await supabaseServer();
 
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) {
+    return (
+      <div className="p-8">
+        <p className="text-sm text-red-700">Unauthorized.</p>
+      </div>
+    );
+  }
+
+  const access = await getLetterAccess(auth.user.id, id);
+  if (!access.allowed) {
+    return (
+      <div className="p-8">
+        <Link href="/letters" className="text-sm text-emerald-700 hover:underline">
+          ← Back to Letters
+        </Link>
+        <div className="mt-6 rounded-3xl bg-white p-6 ring-1 ring-red-200/70">
+          <p className="text-sm text-red-700">You are not allowed to view this letter.</p>
+        </div>
+      </div>
+    );
+  }
+
   const { data: letter, error } = await supabase
     .from("letters")
     .select(
@@ -74,7 +98,6 @@ export default async function LetterDetailsPage({
   }
 
   // Audit: viewed (best-effort)
-  const { data: auth } = await supabase.auth.getUser();
   if (auth.user) {
     await supabase.from("audit_logs").insert([
       {

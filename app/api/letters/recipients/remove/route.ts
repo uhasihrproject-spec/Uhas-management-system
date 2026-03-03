@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
+import { getLetterAccess } from "@/lib/letters/access";
 
 export async function POST(req: Request) {
   try {
@@ -11,10 +12,12 @@ export async function POST(req: Request) {
     }
 
     const supabase = await supabaseServer();
-
     const { data: auth } = await supabase.auth.getUser();
-    if (!auth?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!auth?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const access = await getLetterAccess(auth.user.id, String(letter_id));
+    if (!access.allowed || !["ADMIN", "SECRETARY"].includes(access.role || "")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const { error } = await supabase
@@ -24,13 +27,8 @@ export async function POST(req: Request) {
       .eq("user_id", user_id);
 
     if (error) throw error;
-
     return NextResponse.json({ ok: true });
-
   } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.message || "Failed to remove recipient" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: e?.message || "Failed to remove recipient" }, { status: 500 });
   }
 }
