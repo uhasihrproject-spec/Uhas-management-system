@@ -512,7 +512,10 @@ export default function UsersAdminClient({ initialUsers }: { initialUsers: UserR
               </div>
 
               <AddUserPopup
-                onCreated={(newUser) => setUsers((prev) => [newUser, ...prev])}
+                onCreated={(newUser) => {
+                  setUsers((prev) => [newUser, ...prev]);
+                  flashOk("User created successfully.");
+                }}
                 onError={(m) => setErr(m)}
               />
             </div>
