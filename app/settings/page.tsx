@@ -200,9 +200,17 @@ export default function SettingsOverview() {
 
       if (p) {
         const prof = p as Profile;
+<<<<<<< codex/fix-confidentiality-issues-and-bugs-vqndpy
         setProfile((prev) => ({ ...prev, ...prof }));
         setCompactMode(Boolean((prof as any).pref_compact));
         setShowHints((prof as any).pref_hints !== false);
+=======
+        setProfile(prof);
+
+        //  use DB values, fallback to defaults
+        setCompactMode(Boolean(prof.pref_compact));
+        setShowHints(prof.pref_hints !== false);
+>>>>>>> main
       }
 
       // Also fetch activity (will work once you add audit_read_own policy)
@@ -276,6 +284,7 @@ export default function SettingsOverview() {
 
       if (error) throw error;
 
+<<<<<<< codex/fix-confidentiality-issues-and-bugs-vqndpy
       try {
         localStorage.setItem("pref_compact", compactMode ? "1" : "0");
         localStorage.setItem("pref_hints", showHints ? "1" : "0");
@@ -286,6 +295,8 @@ export default function SettingsOverview() {
         document.documentElement.classList.toggle("reduce-motion", reduceMotion);
       }
 
+=======
+>>>>>>> main
       setMsg("Preferences saved successfully.");
       setTimeout(() => setMsg(""), 3000);
     } catch (e: any) {

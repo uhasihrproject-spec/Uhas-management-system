@@ -122,7 +122,16 @@ export async function POST(req: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
   if (confidentiality === "CONFIDENTIAL") {
+<<<<<<< codex/fix-confidentiality-issues-and-bugs-vqndpy
     const rows = recipient_user_ids.map((uid) => ({ letter_id: inserted.id, user_id: uid }));
+=======
+    const rows = recipient_user_ids.map((uid) => ({
+      letter_id: inserted.id,
+      user_id: uid,
+    }));
+
+    const admin = supabaseAdmin();
+>>>>>>> main
     const { error: rErr } = await admin.from("letter_recipients").insert(rows);
 
     if (rErr) {
