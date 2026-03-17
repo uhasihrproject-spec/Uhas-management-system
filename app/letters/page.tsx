@@ -56,16 +56,31 @@ export default async function LettersPage({
 
   let role: "ADMIN" | "SECRETARY" | "STAFF" | null = null;
   let myDepartment: string | null = null;
+  let compactMode = false;
+  let showHints = true;
 
   if (auth.user) {
-    const { data: profile } = await admin
+    let profile: any = null;
+    let profileError: any = null;
+
+    ({ data: profile, error: profileError } = await admin
       .from("profiles")
-      .select("role, department")
+      .select("role, department, pref_compact, pref_hints")
       .eq("id", auth.user.id)
-      .maybeSingle();
+      .maybeSingle());
+
+    if (profileError && String(profileError.message || "").toLowerCase().includes("column")) {
+      ({ data: profile } = await admin
+        .from("profiles")
+        .select("role, department")
+        .eq("id", auth.user.id)
+        .maybeSingle());
+    }
 
     role = (profile?.role as any) ?? null;
     myDepartment = profile?.department ?? null;
+    compactMode = Boolean(profile?.pref_compact);
+    showHints = profile?.pref_hints !== false;
   }
 
   const canWrite = role === "ADMIN" || role === "SECRETARY";
@@ -176,14 +191,18 @@ export default async function LettersPage({
             UHAS Procurement Directorate
           </p>
           <h1 className="mt-2 text-2xl sm:text-3xl font-semibold">Letters</h1>
-          <p className="mt-2 text-sm sm:text-base text-neutral-800">
-            Search and manage incoming/outgoing letters. Past years are automatically archived.
-          </p>
-          <p className="mt-1 text-sm text-neutral-700">
-            {isArchiveView
-              ? `Archive view: ${selectedYear}. These records are from a previous year.`
-              : `Active year: ${currentYear}. New records continue from this year.`}
-          </p>
+          {showHints ? (
+            <>
+              <p className="mt-2 text-sm sm:text-base text-neutral-800">
+                Search and manage incoming/outgoing letters. Past years are automatically archived.
+              </p>
+              <p className="mt-1 text-sm text-neutral-700">
+                {isArchiveView
+                  ? `Archive view: ${selectedYear}. These records are from a previous year.`
+                  : `Active year: ${currentYear}. New records continue from this year.`}
+              </p>
+            </>
+          ) : null}
         </div>
 
         {canWrite ? (
@@ -206,7 +225,14 @@ export default async function LettersPage({
             </p>
           </div>
         ) : (
-          <LettersTable rows={rows as any} years={years} currentYear={String(currentYear)} selectedYear={String(selectedYear)} />
+          <LettersTable
+            rows={rows as any}
+            years={years}
+            currentYear={String(currentYear)}
+            selectedYear={String(selectedYear)}
+            compactMode={compactMode}
+            showHints={showHints}
+          />
         )}
       </div>
     </div>
