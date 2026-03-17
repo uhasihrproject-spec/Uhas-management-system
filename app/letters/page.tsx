@@ -33,6 +33,13 @@ function applyFilters(query: any, params: { q: string; direction: string; status
   return q;
 }
 
+function normalizeYear(v: string | undefined, fallback: number) {
+  if (!v) return String(fallback);
+  const x = Number(v);
+  if (!Number.isInteger(x) || x < 2000 || x > 3000) return String(fallback);
+  return String(x);
+}
+
 export default async function LettersPage({
   searchParams,
 }: {
@@ -63,18 +70,36 @@ export default async function LettersPage({
 
   const canWrite = role === "ADMIN" || role === "SECRETARY";
 
+  const currentYear = new Date().getFullYear();
+
   const filters = {
     q: (sp.q || "").trim(),
     direction: sp.direction || "",
     status: sp.status || "",
     conf: sp.conf || "",
-    year: sp.year || String(new Date().getFullYear()),
+    year: normalizeYear(sp.year, currentYear),
   };
 
-  const currentYear = new Date().getFullYear();
-  const selectedYear = Number(filters.year) || currentYear;
+  const { data: oldestYearRow } = await admin
+    .from("letters")
+    .select("date_received")
+    .order("date_received", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  const startYear = oldestYearRow?.date_received
+    ? Number(String(oldestYearRow.date_received).slice(0, 4)) || currentYear
+    : currentYear;
+
+  const years = Array.from(
+    { length: Math.max(1, currentYear - startYear + 1) },
+    (_, i) => String(startYear + i)
+  );
+
+  const safeSelectedYear = years.includes(filters.year) ? filters.year : String(currentYear);
+  filters.year = safeSelectedYear;
+  const selectedYear = Number(safeSelectedYear) || currentYear;
   const isArchiveView = selectedYear < currentYear;
-  const years = Array.from({ length: 12 }, (_, i) => String(currentYear - i));
 
   let rows: any[] = [];
   let errorMessage = "";
