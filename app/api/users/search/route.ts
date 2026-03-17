@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -11,7 +12,9 @@ export async function GET(req: Request) {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data: me, error: meErr } = await supabase
+  const admin = supabaseAdmin();
+
+  const { data: me, error: meErr } = await admin
     .from("profiles")
     .select("id, role")
     .eq("id", auth.user.id)
@@ -24,7 +27,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await admin
     .from("profiles")
     .select("id, full_name, department, role")
     .or(`full_name.ilike.%${q}%,department.ilike.%${q}%`)

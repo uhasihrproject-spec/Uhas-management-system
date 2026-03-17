@@ -92,7 +92,21 @@ const btnPrimary =
 const btnGhost =
   "inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium border border-neutral-200 hover:bg-neutral-50 active:bg-neutral-100 disabled:opacity-60 disabled:cursor-not-allowed transition-colors whitespace-nowrap";
 
-export default function LettersTable({ rows }: { rows: Row[] }) {
+export default function LettersTable({
+  rows,
+  years,
+  currentYear,
+  selectedYear,
+  compactMode = false,
+  showHints = true,
+}: {
+  rows: Row[];
+  years?: string[];
+  currentYear?: string;
+  selectedYear?: string;
+  compactMode?: boolean;
+  showHints?: boolean;
+}) {
   const router = useRouter();
   const sp = useSearchParams();
 
@@ -101,6 +115,8 @@ export default function LettersTable({ rows }: { rows: Row[] }) {
   const direction = sp.get("direction") || "";
   const status = sp.get("status") || "";
   const conf = sp.get("conf") || "";
+  const year = sp.get("year") || selectedYear || String(new Date().getFullYear());
+  const showArchiveTone = currentYear ? year !== currentYear : false;
 
   const shown = useMemo(() => rows ?? [], [rows]);
   const total = shown.length;
@@ -159,7 +175,7 @@ export default function LettersTable({ rows }: { rows: Row[] }) {
           </div>
 
           {/* Filters row */}
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
             <select
               value={direction}
               onChange={(e) => setParam("direction", e.target.value)}
@@ -185,10 +201,27 @@ export default function LettersTable({ rows }: { rows: Row[] }) {
               <option value="CONFIDENTIAL">Confidential</option>
             </select>
 
+            <select value={year} onChange={(e) => setParam("year", e.target.value)} className={selectCls}>
+              {(years || [String(new Date().getFullYear())]).map((y) => (
+                <option key={y} value={y}>
+                  Year {y}
+                </option>
+              ))}
+            </select>
+
             <button type="button" onClick={clearAll} className={btnGhost}>
               Clear
             </button>
           </div>
+          {showHints && showArchiveTone ? (
+            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              Viewing archived records for year {year}.
+            </div>
+          ) : showHints ? (
+            <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+              Viewing active records for year {year}.
+            </div>
+          ) : null}
         </div>
 
         {/* Body */}
@@ -205,7 +238,7 @@ export default function LettersTable({ rows }: { rows: Row[] }) {
                   onClick={() => goToLetter(r)}
                   disabled={!clickable}
                   className={[
-                    "w-full text-left rounded-2xl border p-4 transition-colors",
+                    `w-full text-left rounded-2xl border ${compactMode ? "p-3" : "p-4"} transition-colors`,
                     clickable
                       ? "border-neutral-200/70 hover:bg-emerald-50/30 active:bg-emerald-50/60"
                       : "border-red-200 bg-red-50/30 cursor-not-allowed",
@@ -216,7 +249,7 @@ export default function LettersTable({ rows }: { rows: Row[] }) {
                       <div className="text-sm font-semibold text-neutral-900 truncate">
                         {r.ref_no ?? "(no ref)"}
                       </div>
-                      <div className="mt-1 text-xs text-neutral-900">
+                      <div className={`mt-1 text-neutral-900 ${compactMode ? "text-[11px]" : "text-xs"}`}>
                         {r.date_received ?? "—"} • {r.recipient_department ?? "—"}
                       </div>
                     </div>
@@ -255,18 +288,18 @@ export default function LettersTable({ rows }: { rows: Row[] }) {
           {/* DESKTOP: Table */}
           <div className="hidden md:block">
             <div className="overflow-x-auto rounded-2xl ring-1 ring-neutral-200/70">
-              <table className="min-w-full w-full text-sm bg-white">
+              <table className={`min-w-full w-full bg-white ${compactMode ? "text-xs" : "text-sm"}`}>
                 <thead className="bg-white sticky top-0">
                   <tr className="text-left text-xs uppercase tracking-wide text-neutral-900 border-b border-neutral-200/70">
-                    <th className="py-3 px-4 whitespace-nowrap">Ref No</th>
-                    <th className="py-3 px-4 whitespace-nowrap">Direction</th>
-                    <th className="py-3 px-4 whitespace-nowrap">Received</th>
-                    <th className="py-3 px-4 whitespace-nowrap">Sender</th>
-                    <th className="py-3 px-4 hidden lg:table-cell whitespace-nowrap">Department</th>
-                    <th className="py-3 px-4 whitespace-nowrap">Subject</th>
-                    <th className="py-3 px-4 whitespace-nowrap">Status</th>
+                    <th className={`${compactMode ? "py-2" : "py-3"} px-4 whitespace-nowrap`}>Ref No</th>
+                    <th className={`${compactMode ? "py-2" : "py-3"} px-4 whitespace-nowrap`}>Direction</th>
+                    <th className={`${compactMode ? "py-2" : "py-3"} px-4 whitespace-nowrap`}>Received</th>
+                    <th className={`${compactMode ? "py-2" : "py-3"} px-4 whitespace-nowrap`}>Sender</th>
+                    <th className={`${compactMode ? "py-2" : "py-3"} px-4 hidden lg:table-cell whitespace-nowrap`}>Department</th>
+                    <th className={`${compactMode ? "py-2" : "py-3"} px-4 whitespace-nowrap`}>Subject</th>
+                    <th className={`${compactMode ? "py-2" : "py-3"} px-4 whitespace-nowrap`}>Status</th>
                     {/*  show from lg not xl */}
-                    <th className="py-3 px-4 hidden lg:table-cell whitespace-nowrap">Conf.</th>
+                    <th className={`${compactMode ? "py-2" : "py-3"} px-4 hidden lg:table-cell whitespace-nowrap`}>Conf.</th>
                   </tr>
                 </thead>
 
@@ -287,24 +320,24 @@ export default function LettersTable({ rows }: { rows: Row[] }) {
                         onClick={() => clickable && goToLetter(r)}
                         title={clickable ? "Open letter" : "Missing ID"}
                       >
-                        <td className="py-3 px-4 font-semibold text-emerald-700 whitespace-nowrap">
+                        <td className={`${compactMode ? "py-2" : "py-3"} px-4 font-semibold text-emerald-700 whitespace-nowrap`}>
                           {r.ref_no ?? "(no ref)"}
                         </td>
-                        <td className="py-3 px-4 whitespace-nowrap">{fmtDirection(r.direction)}</td>
-                        <td className="py-3 px-4 whitespace-nowrap">{r.date_received ?? "—"}</td>
-                        <td className="py-3 px-4 whitespace-nowrap">{r.sender_name ?? "—"}</td>
+                        <td className={`${compactMode ? "py-2" : "py-3"} px-4 whitespace-nowrap`}>{fmtDirection(r.direction)}</td>
+                        <td className={`${compactMode ? "py-2" : "py-3"} px-4 whitespace-nowrap`}>{r.date_received ?? "—"}</td>
+                        <td className={`${compactMode ? "py-2" : "py-3"} px-4 whitespace-nowrap`}>{r.sender_name ?? "—"}</td>
 
-                        <td className="py-3 px-4 hidden lg:table-cell whitespace-nowrap">
+                        <td className={`${compactMode ? "py-2" : "py-3"} px-4 hidden lg:table-cell whitespace-nowrap`}>
                           {r.recipient_department ?? "—"}
                         </td>
 
-                        <td className="py-3 px-4 max-w-[320px] truncate">{r.subject ?? "—"}</td>
+                        <td className={`${compactMode ? "py-2" : "py-3"} px-4 max-w-[320px] truncate`}>{r.subject ?? "—"}</td>
 
-                        <td className="py-3 px-4 whitespace-nowrap">
+                        <td className={`${compactMode ? "py-2" : "py-3"} px-4 whitespace-nowrap`}>
                           <Pill text={r.status ?? "—"} tone={toneForStatus(r.status)} />
                         </td>
 
-                        <td className="py-3 px-4 hidden lg:table-cell whitespace-nowrap">
+                        <td className={`${compactMode ? "py-2" : "py-3"} px-4 hidden lg:table-cell whitespace-nowrap`}>
                           <Pill
                             text={fmtConf(r.confidentiality)}
                             tone={toneForConf(r.confidentiality)}
@@ -326,9 +359,9 @@ export default function LettersTable({ rows }: { rows: Row[] }) {
             </div>
 
             {/* Desktop note if conf is hidden on smaller screens */}
-            <div className="mt-3 text-xs text-neutral-900">
+            {showHints ? <div className="mt-3 text-xs text-neutral-900">
               Tip: “Conf.” shows from <span className="font-medium">lg</span> screens and above.
-            </div>
+            </div> : null}
           </div>
         </div>
       </div>

@@ -175,6 +175,7 @@ export default function EditLetterForm({ initial }: { initial: LetterEditInitial
   const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState("");
 
+  const [refNo, setRefNo] = useState(initial.ref_no || "");
   const [direction, setDirection] = useState<Direction>(initial.direction);
   const [status, setStatus] = useState<Status>(initial.status);
 
@@ -237,6 +238,10 @@ export default function EditLetterForm({ initial }: { initial: LetterEditInitial
   const orgLabel =
     direction === "INCOMING" ? "Sender Organization" : "Recipient Organization";
   const deptLabel = direction === "INCOMING" ? "From Department" : "Sending Department";
+  const dateReceivedLabel = direction === "INCOMING" ? "Date Received" : "Date Sent";
+  const allowedStatus: Status[] =
+    direction === "OUTGOING" ? ["ASSIGNED", "SCANNED", "ARCHIVED"] : ["RECEIVED", "SCANNED", "ASSIGNED", "ARCHIVED"];
+
 
   // Keep dept fields in sync if direction flips
   useEffect(() => {
@@ -252,6 +257,12 @@ export default function EditLetterForm({ initial }: { initial: LetterEditInitial
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [direction]);
+
+  useEffect(() => {
+    if (direction === "OUTGOING" && status === "RECEIVED") {
+      setStatus("ASSIGNED");
+    }
+  }, [direction, status]);
 
   async function loadLatestFileName() {
     setLoadingFileName(true);
@@ -359,8 +370,19 @@ export default function EditLetterForm({ initial }: { initial: LetterEditInitial
 
     const finalDept = computeFinalDept();
     if (!finalDept) return setErr(`${deptLabel} is required.`);
+    if (!refNo.trim()) return setErr("Reference number is required.");
     if (!senderName.trim()) return setErr(`${nameLabel} is required.`);
     if (!subject.trim()) return setErr("Subject is required.");
+    if (!dateReceived) return setErr(`${dateReceivedLabel} is required.`);
+    if (direction === "OUTGOING" && !dateOnLetter) {
+      return setErr("Date on Letter is required for outgoing letters.");
+    }
+    if (dateOnLetter && dateReceived && new Date(dateOnLetter) > new Date(dateReceived)) {
+      return setErr("Date on Letter cannot be after Date Received/Date Sent.");
+    }
+    if (direction === "OUTGOING" && status === "RECEIVED") {
+      return setErr("Outgoing letters cannot use RECEIVED status.");
+    }
     if (confidentiality === "CONFIDENTIAL" && selectedUsers.length === 0) {
       return setErr("Add at least one recipient for Confidential letters.");
     }
@@ -373,6 +395,7 @@ export default function EditLetterForm({ initial }: { initial: LetterEditInitial
         credentials: "include",
         body: JSON.stringify({
           id: initial.id,
+          ref_no: refNo,
           direction,
           status,
           confidentiality,
@@ -430,7 +453,7 @@ export default function EditLetterForm({ initial }: { initial: LetterEditInitial
       const fd = new FormData();
       fd.append("file", newFile);
       fd.append("letterId", initial.id);
-      fd.append("refNo", initial.ref_no);
+      fd.append("refNo", refNo);
 
       const res = await fetch("/api/letters/replace-scan", {
         method: "POST",
@@ -453,7 +476,7 @@ export default function EditLetterForm({ initial }: { initial: LetterEditInitial
   }
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       <div className="space-y-6">
         {/* Header */}
         <div className="rounded-2xl bg-white border border-neutral-200 p-4 sm:p-6">
@@ -481,9 +504,9 @@ export default function EditLetterForm({ initial }: { initial: LetterEditInitial
 
           <div className="flex flex-col sm:flex-row gap-3">
             <input
-              value={initial.ref_no}
-              readOnly
-              className={`${inputCls} flex-1 font-mono text-sm bg-neutral-50`}
+              value={refNo}
+              onChange={(e) => setRefNo(e.target.value)}
+              className={`${inputCls} flex-1 font-mono text-sm`}
             />
             <button
               type="button"
@@ -495,7 +518,7 @@ export default function EditLetterForm({ initial }: { initial: LetterEditInitial
               View Letter
             </button>
           </div>
-          <p className="mt-2 text-xs text-neutral-500">Ref No is fixed after creation.</p>
+          <p className="mt-2 text-xs text-neutral-500">You can update the reference number if needed.</p>
         </div>
 
         {/* Visibility Control (matches create form) */}
@@ -673,14 +696,14 @@ export default function EditLetterForm({ initial }: { initial: LetterEditInitial
                 className={inputCls}
                 disabled={busy}
               >
-                <option value="RECEIVED">Received</option>
-                <option value="SCANNED">Scanned</option>
-                <option value="ASSIGNED">Assigned</option>
+                {allowedStatus.includes("RECEIVED") ? <option value="RECEIVED">Received</option> : null}
+                {allowedStatus.includes("SCANNED") ? <option value="SCANNED">Scanned</option> : null}
+                {allowedStatus.includes("ASSIGNED") ? <option value="ASSIGNED">Assigned</option> : null}
                 <option value="ARCHIVED">Archived</option>
               </select>
             </Field>
 
-            <Field label="Date Received" required>
+            <Field label={dateReceivedLabel} required>
               <input
                 type="date"
                 value={dateReceived}
