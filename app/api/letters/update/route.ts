@@ -11,6 +11,37 @@ export async function POST(req: Request) {
 
   if (!id) return NextResponse.json({ error: "Missing letter id" }, { status: 400 });
 
+  const direction = String(patch?.direction || "").toUpperCase();
+  const status = String(patch?.status || "").toUpperCase();
+  const dateReceived = String(patch?.date_received || "").trim();
+  const dateOnLetter = String(patch?.date_on_letter || "").trim();
+
+  if (direction && !["INCOMING", "OUTGOING"].includes(direction)) {
+    return NextResponse.json({ error: "Invalid direction" }, { status: 400 });
+  }
+
+  if (status && !["RECEIVED", "SCANNED", "ASSIGNED", "ARCHIVED"].includes(status)) {
+    return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+  }
+
+  if (direction === "OUTGOING" && status === "RECEIVED") {
+    return NextResponse.json(
+      { error: "Outgoing letters cannot use RECEIVED status." },
+      { status: 400 }
+    );
+  }
+
+  if (direction === "OUTGOING" && !dateOnLetter) {
+    return NextResponse.json({ error: "date_on_letter is required for OUTGOING letters." }, { status: 400 });
+  }
+
+  if (dateOnLetter && dateReceived && new Date(dateOnLetter) > new Date(dateReceived)) {
+    return NextResponse.json(
+      { error: "date_on_letter cannot be later than date_received/date_sent." },
+      { status: 400 }
+    );
+  }
+
   const { error } = await supabase
     .from("letters")
     .update({ ...patch, updated_at: new Date().toISOString() })

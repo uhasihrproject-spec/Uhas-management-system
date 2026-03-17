@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 type Conf = "PUBLIC" | "INTERNAL" | "CONFIDENTIAL";
 
@@ -47,6 +48,36 @@ export async function POST(req: Request) {
   if (!String(body?.date_received || "").trim())
     return NextResponse.json({ error: "date_received is required." }, { status: 400 });
 
+  const direction = String(body?.direction || "").toUpperCase();
+  if (!["INCOMING", "OUTGOING"].includes(direction)) {
+    return NextResponse.json({ error: "Invalid direction." }, { status: 400 });
+  }
+
+  const status = String(body?.status || "").toUpperCase();
+  if (!status || !["RECEIVED", "SCANNED", "ASSIGNED", "ARCHIVED"].includes(status)) {
+    return NextResponse.json({ error: "Invalid status." }, { status: 400 });
+  }
+
+  if (direction === "OUTGOING" && status === "RECEIVED") {
+    return NextResponse.json(
+      { error: "Outgoing letters cannot use RECEIVED status. Use ASSIGNED/SCANNED/ARCHIVED." },
+      { status: 400 }
+    );
+  }
+
+  const dateReceived = String(body?.date_received || "").trim();
+  const dateOnLetter = String(body?.date_on_letter || "").trim();
+  if (direction === "OUTGOING" && !dateOnLetter) {
+    return NextResponse.json({ error: "date_on_letter is required for OUTGOING letters." }, { status: 400 });
+  }
+
+  if (dateOnLetter && dateReceived && new Date(dateOnLetter) > new Date(dateReceived)) {
+    return NextResponse.json(
+      { error: "date_on_letter cannot be later than date_received/date_sent." },
+      { status: 400 }
+    );
+  }
+
   // INTERNAL must have recipient_department
   const recipient_department_raw = String(body?.recipient_department || "").trim();
   if (confidentiality === "INTERNAL" && !recipient_department_raw) {
@@ -68,8 +99,8 @@ export async function POST(req: Request) {
   // Only allow known columns to go into letters table
   const insertLetter = {
     ref_no: String(body.ref_no).trim(),
-    direction: body.direction,
-    date_received: body.date_received,
+    direction,
+    date_received: dateReceived,
     date_on_letter: body.date_on_letter || null,
 
     sender_name: String(body.sender_name).trim(),
@@ -83,7 +114,7 @@ export async function POST(req: Request) {
     category: body.category || null,
 
     confidentiality,
-    status: body.status,
+    status,
 
     tags: Array.isArray(body.tags) ? body.tags : [],
 
@@ -113,7 +144,8 @@ export async function POST(req: Request) {
       user_id: uid,
     }));
 
-    const { error: rErr } = await supabase.from("letter_recipients").insert(rows);
+    const admin = supabaseAdmin();
+    const { error: rErr } = await admin.from("letter_recipients").insert(rows);
 
     if (rErr) {
       // optional: rollback the letter if recipients fail

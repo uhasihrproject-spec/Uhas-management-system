@@ -180,7 +180,7 @@ export default function SettingsOverview() {
         const prof = p as Profile;
         setProfile(prof);
 
-        // ✅ use DB values, fallback to defaults
+        //  use DB values, fallback to defaults
         setCompactMode(Boolean(prof.pref_compact));
         setShowHints(prof.pref_hints !== false);
       }
@@ -221,7 +221,7 @@ export default function SettingsOverview() {
         .eq("id", auth.user.id);
 
       if (error) throw error;
-      setMsg("Profile updated ✅");
+      setMsg("Profile updated successfully.");
       setTimeout(() => setMsg(""), 3000);
     } catch (e: any) {
       setErr(e?.message || "Failed to save.");
@@ -249,7 +249,7 @@ export default function SettingsOverview() {
 
       if (error) throw error;
 
-      setMsg("Preferences saved ✅");
+      setMsg("Preferences saved successfully.");
       setTimeout(() => setMsg(""), 3000);
     } catch (e: any) {
       setErr(e?.message || "Failed to save preferences.");

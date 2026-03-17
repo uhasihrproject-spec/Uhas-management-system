@@ -57,7 +57,7 @@ export default async function EditLetterPage({
     );
   }
 
-  // 📄 Fetch letter
+  // Fetch letter
   const { data: letter, error } = await supabase
     .from("letters")
     .select(
