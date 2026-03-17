@@ -92,7 +92,7 @@ const btnPrimary =
 const btnGhost =
   "inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium border border-neutral-200 hover:bg-neutral-50 active:bg-neutral-100 disabled:opacity-60 disabled:cursor-not-allowed transition-colors whitespace-nowrap";
 
-export default function LettersTable({ rows, years }: { rows: Row[]; years?: string[] }) {
+export default function LettersTable({ rows, years, currentYear, selectedYear }: { rows: Row[]; years?: string[]; currentYear?: string; selectedYear?: string }) {
   const router = useRouter();
   const sp = useSearchParams();
 
@@ -101,7 +101,8 @@ export default function LettersTable({ rows, years }: { rows: Row[]; years?: str
   const direction = sp.get("direction") || "";
   const status = sp.get("status") || "";
   const conf = sp.get("conf") || "";
-  const year = sp.get("year") || String(new Date().getFullYear());
+  const year = sp.get("year") || selectedYear || String(new Date().getFullYear());
+  const showArchiveTone = currentYear ? year !== currentYear : false;
 
   const shown = useMemo(() => rows ?? [], [rows]);
   const total = shown.length;
@@ -198,6 +199,15 @@ export default function LettersTable({ rows, years }: { rows: Row[]; years?: str
               Clear
             </button>
           </div>
+          {showArchiveTone ? (
+            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              Viewing archived records for year {year}.
+            </div>
+          ) : (
+            <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+              Viewing active records for year {year}.
+            </div>
+          )}
         </div>
 
         {/* Body */}

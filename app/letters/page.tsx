@@ -2,6 +2,7 @@ import Link from "next/link";
 import LettersTable from "./LettersTable";
 import { supabaseServer } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { ensureYearlyArchive } from "@/lib/letters/yearlyArchive";
 
 type SearchParams = {
   q?: string;
@@ -43,6 +44,9 @@ export default async function LettersPage({
 
   const { data: auth } = await supabase.auth.getUser();
 
+  // automatic year rollover: all previous-year letters become ARCHIVED
+  await ensureYearlyArchive();
+
   let role: "ADMIN" | "SECRETARY" | "STAFF" | null = null;
   let myDepartment: string | null = null;
 
@@ -68,7 +72,9 @@ export default async function LettersPage({
   };
 
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 8 }, (_, i) => String(currentYear - i));
+  const selectedYear = Number(filters.year) || currentYear;
+  const isArchiveView = selectedYear < currentYear;
+  const years = Array.from({ length: 12 }, (_, i) => String(currentYear - i));
 
   let rows: any[] = [];
   let errorMessage = "";
@@ -146,7 +152,12 @@ export default async function LettersPage({
           </p>
           <h1 className="mt-2 text-2xl sm:text-3xl font-semibold">Letters</h1>
           <p className="mt-2 text-sm sm:text-base text-neutral-800">
-            Search and manage incoming/outgoing letters. Use the year filter to browse archived records.
+            Search and manage incoming/outgoing letters. Past years are automatically archived.
+          </p>
+          <p className="mt-1 text-sm text-neutral-700">
+            {isArchiveView
+              ? `Archive view: ${selectedYear}. These records are from a previous year.`
+              : `Active year: ${currentYear}. New records continue from this year.`}
           </p>
         </div>
 
@@ -170,7 +181,7 @@ export default async function LettersPage({
             </p>
           </div>
         ) : (
-          <LettersTable rows={rows as any} years={years} />
+          <LettersTable rows={rows as any} years={years} currentYear={String(currentYear)} selectedYear={String(selectedYear)} />
         )}
       </div>
     </div>
