@@ -140,6 +140,7 @@ export default function SettingsOverview() {
   // real prefs
   const [compactMode, setCompactMode] = useState(false);
   const [showHints, setShowHints] = useState(true);
+  const [reduceMotion, setReduceMotion] = useState(false);
 
   // activity
   const [activityLoading, setActivityLoading] = useState(false);
@@ -168,21 +169,34 @@ export default function SettingsOverview() {
       setEmail(user.email ?? "");
       setLastSignInAt((user as any)?.last_sign_in_at ?? null);
 
-      const { data: p, error } = await supabase
+      try {
+        setReduceMotion(localStorage.getItem("pref_reduce_motion") === "1");
+      } catch {}
+
+      let p: any = null;
+      let error: any = null;
+
+      ({ data: p, error } = await supabase
         .from("profiles")
         .select("full_name, department, role, pref_compact, pref_hints")
         .eq("id", user.id)
-        .maybeSingle();
+        .maybeSingle());
+
+      if (error && String(error.message || "").toLowerCase().includes("column")) {
+        ({ data: p, error } = await supabase
+          .from("profiles")
+          .select("full_name, department, role")
+          .eq("id", user.id)
+          .maybeSingle());
+      }
 
       if (error) setErr(error.message);
 
       if (p) {
         const prof = p as Profile;
-        setProfile(prof);
-
-        //  use DB values, fallback to defaults
-        setCompactMode(Boolean(prof.pref_compact));
-        setShowHints(prof.pref_hints !== false);
+        setProfile((prev) => ({ ...prev, ...prof }));
+        setCompactMode(Boolean((prof as any).pref_compact));
+        setShowHints((prof as any).pref_hints !== false);
       }
 
       // Also fetch activity (will work once you add audit_read_own policy)
@@ -239,7 +253,7 @@ export default function SettingsOverview() {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) throw new Error("Not signed in.");
 
-      const { error } = await supabase
+      let { error } = await supabase
         .from("profiles")
         .update({
           pref_compact: compactMode,
@@ -247,7 +261,18 @@ export default function SettingsOverview() {
         })
         .eq("id", auth.user.id);
 
+      if (error && String(error.message || "").toLowerCase().includes("column")) {
+        ({ error } = await supabase
+          .from("profiles")
+          .update({})
+          .eq("id", auth.user.id));
+      }
+
       if (error) throw error;
+
+      try {
+        localStorage.setItem("pref_reduce_motion", reduceMotion ? "1" : "0");
+      } catch {}
 
       setMsg("Preferences saved successfully.");
       setTimeout(() => setMsg(""), 3000);
