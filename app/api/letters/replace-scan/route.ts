@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabaseServer } from "@/lib/supabase/server";
+import { getLetterAccess } from "@/lib/letters/access";
 
 export async function POST(req: Request) {
   const supabaseAuth = await supabaseServer();
@@ -9,11 +10,17 @@ export async function POST(req: Request) {
 
   const form = await req.formData();
   const file = form.get("file") as File | null;
-  const letterId = String(form.get("letterId") || "");
-  const refNo = String(form.get("refNo") || "");
+  const letterId = String(form.get("letterId") || "").trim();
+  const refNo = String(form.get("refNo") || "").trim();
 
   if (!file || !letterId || !refNo) {
     return NextResponse.json({ error: "Missing file/letterId/refNo" }, { status: 400 });
+  }
+
+  const access = await getLetterAccess(auth.user.id, letterId);
+  const canEdit = access.role === "ADMIN" || access.role === "SECRETARY";
+  if (!access.allowed || !canEdit) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const allowed = ["application/pdf", "image/jpeg", "image/png"];
@@ -38,7 +45,6 @@ export async function POST(req: Request) {
 
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
 
-  // Update DB record
   const { error: dbErr } = await admin
     .from("letters")
     .update({
@@ -52,15 +58,14 @@ export async function POST(req: Request) {
 
   if (dbErr) return NextResponse.json({ error: dbErr.message }, { status: 500 });
 
-  // Audit (best-effort)
   await admin.from("audit_logs").insert([
-  {
-    user_id: auth.user.id,
-    action: "SCAN_REPLACED",
-    letter_id: letterId,
-    meta: { file: file.name, mime: file.type },
-  },
-]);
+    {
+      user_id: auth.user.id,
+      action: "SCAN_REPLACED",
+      letter_id: letterId,
+      meta: { file: file.name, mime: file.type },
+    },
+  ]);
 
   return NextResponse.json({ ok: true });
 }
