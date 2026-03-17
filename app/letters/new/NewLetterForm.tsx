@@ -156,6 +156,9 @@ export default function NewLetterForm() {
   const nameLabel = direction === "INCOMING" ? "Sender Name" : "Recipient Name";
   const orgLabel = direction === "INCOMING" ? "Sender Organization" : "Recipient Organization";
   const deptLabel = direction === "INCOMING" ? "From Department" : "Sending Department";
+  const dateReceivedLabel = direction === "INCOMING" ? "Date Received" : "Date Sent";
+  const allowedStatus: Status[] =
+    direction === "OUTGOING" ? ["ASSIGNED", "SCANNED", "ARCHIVED"] : ["RECEIVED", "SCANNED", "ASSIGNED", "ARCHIVED"];
 
   async function loadNextRef() {
     setErr("");
@@ -179,6 +182,12 @@ export default function NewLetterForm() {
   useEffect(() => {
     loadNextRef();
   }, [direction, year]);
+
+  useEffect(() => {
+    if (direction === "OUTGOING" && status === "RECEIVED") {
+      setStatus("ASSIGNED");
+    }
+  }, [direction, status]);
 
   useEffect(() => {
     setErr("");
@@ -233,6 +242,16 @@ export default function NewLetterForm() {
    
     if (loading) return;
     if (!refNo.trim()) return setErr("Reference number is missing.");
+    if (!dateReceived) return setErr(`${dateReceivedLabel} is required.`);
+    if (direction === "OUTGOING" && !dateOnLetter) {
+      return setErr("Date on Letter is required for outgoing letters.");
+    }
+    if (dateOnLetter && dateReceived && new Date(dateOnLetter) > new Date(dateReceived)) {
+      return setErr("Date on Letter cannot be after Date Received/Date Sent.");
+    }
+    if (direction === "OUTGOING" && status === "RECEIVED") {
+      return setErr("Outgoing letters cannot use RECEIVED status.");
+    }
     if (!senderName.trim()) return setErr(`${nameLabel} is required.`);
     if (!subject.trim()) return setErr("Subject is required.");
     if (!file) return setErr("Please upload the scanned letter (PDF/JPG/PNG).");
@@ -301,7 +320,7 @@ export default function NewLetterForm() {
   }
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       <form onSubmit={onSubmit} className="space-y-6">
         {/* Header */}
         <div className="rounded-2xl bg-white border border-neutral-200 p-4 sm:p-6">
@@ -344,7 +363,7 @@ export default function NewLetterForm() {
             </button>
           </div>
           <p className="mt-2 text-xs text-neutral-500">
-            Auto-generated based on direction and year
+            Auto-generated per direction and year. Number resets each year (0001, 0002, ...).
           </p>
         </div>
 
@@ -491,16 +510,16 @@ export default function NewLetterForm() {
                 onChange={(e) => setStatus(e.target.value as Status)}
                 className={inputCls}
               >
-                <option value="RECEIVED">Received</option>
-                <option value="SCANNED">Scanned</option>
-                <option value="ASSIGNED">Assigned</option>
+                {allowedStatus.includes("RECEIVED") ? <option value="RECEIVED">Received</option> : null}
+                {allowedStatus.includes("SCANNED") ? <option value="SCANNED">Scanned</option> : null}
+                {allowedStatus.includes("ASSIGNED") ? <option value="ASSIGNED">Assigned</option> : null}
                 <option value="ARCHIVED">Archived</option>
               </select>
             </div>
 
             <div>
               <label className="text-xs font-medium text-neutral-700 block mb-2">
-                Date Received <span className="text-red-500">*</span>
+                {dateReceivedLabel} <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"

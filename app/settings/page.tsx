@@ -140,6 +140,7 @@ export default function SettingsOverview() {
   // real prefs
   const [compactMode, setCompactMode] = useState(false);
   const [showHints, setShowHints] = useState(true);
+  const [reduceMotion, setReduceMotion] = useState(false);
 
   // activity
   const [activityLoading, setActivityLoading] = useState(false);
@@ -168,21 +169,40 @@ export default function SettingsOverview() {
       setEmail(user.email ?? "");
       setLastSignInAt((user as any)?.last_sign_in_at ?? null);
 
-      const { data: p, error } = await supabase
+      try {
+        const localReduceMotion = localStorage.getItem("pref_reduce_motion") === "1";
+        setReduceMotion(localReduceMotion);
+        setCompactMode(localStorage.getItem("pref_compact") === "1");
+        setShowHints(localStorage.getItem("pref_hints") !== "0");
+        if (typeof document !== "undefined") {
+          document.documentElement.classList.toggle("reduce-motion", localReduceMotion);
+        }
+      } catch {}
+
+      let p: any = null;
+      let error: any = null;
+
+      ({ data: p, error } = await supabase
         .from("profiles")
         .select("full_name, department, role, pref_compact, pref_hints")
         .eq("id", user.id)
-        .maybeSingle();
+        .maybeSingle());
+
+      if (error && String(error.message || "").toLowerCase().includes("column")) {
+        ({ data: p, error } = await supabase
+          .from("profiles")
+          .select("full_name, department, role")
+          .eq("id", user.id)
+          .maybeSingle());
+      }
 
       if (error) setErr(error.message);
 
       if (p) {
         const prof = p as Profile;
-        setProfile(prof);
-
-        //  use DB values, fallback to defaults
-        setCompactMode(Boolean(prof.pref_compact));
-        setShowHints(prof.pref_hints !== false);
+        setProfile((prev) => ({ ...prev, ...prof }));
+        setCompactMode(Boolean((prof as any).pref_compact));
+        setShowHints((prof as any).pref_hints !== false);
       }
 
       // Also fetch activity (will work once you add audit_read_own policy)
@@ -239,7 +259,7 @@ export default function SettingsOverview() {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) throw new Error("Not signed in.");
 
-      const { error } = await supabase
+      let { error } = await supabase
         .from("profiles")
         .update({
           pref_compact: compactMode,
@@ -247,7 +267,24 @@ export default function SettingsOverview() {
         })
         .eq("id", auth.user.id);
 
+      if (error && String(error.message || "").toLowerCase().includes("column")) {
+        ({ error } = await supabase
+          .from("profiles")
+          .update({})
+          .eq("id", auth.user.id));
+      }
+
       if (error) throw error;
+
+      try {
+        localStorage.setItem("pref_compact", compactMode ? "1" : "0");
+        localStorage.setItem("pref_hints", showHints ? "1" : "0");
+        localStorage.setItem("pref_reduce_motion", reduceMotion ? "1" : "0");
+      } catch {}
+
+      if (typeof document !== "undefined") {
+        document.documentElement.classList.toggle("reduce-motion", reduceMotion);
+      }
 
       setMsg("Preferences saved successfully.");
       setTimeout(() => setMsg(""), 3000);
@@ -474,6 +511,28 @@ export default function SettingsOverview() {
               type="checkbox"
               checked={showHints}
               onChange={(e) => setShowHints(e.target.checked)}
+              className="h-5 w-5 rounded border-neutral-300 text-emerald-600 focus:ring-2 focus:ring-emerald-600/20 transition-all"
+            />
+          </label>
+
+          <label className="flex items-center justify-between gap-4 rounded-xl border border-neutral-200 p-4 cursor-pointer hover:bg-neutral-50 transition-colors group">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-lg bg-neutral-50 flex items-center justify-center flex-shrink-0 group-hover:bg-neutral-100 transition-colors">
+                <svg className="w-5 h-5 text-neutral-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.5 10.5V6.75a1.5 1.5 0 00-3 0v3.75M7.5 10.5h9A1.5 1.5 0 0118 12v4.5A1.5 1.5 0 0116.5 18h-9A1.5 1.5 0 016 16.5V12a1.5 1.5 0 011.5-1.5z" />
+                </svg>
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-neutral-900">Reduce motion</div>
+                <div className="text-sm text-neutral-600">
+                  Minimize UI animation intensity on this device.
+                </div>
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              checked={reduceMotion}
+              onChange={(e) => setReduceMotion(e.target.checked)}
               className="h-5 w-5 rounded border-neutral-300 text-emerald-600 focus:ring-2 focus:ring-emerald-600/20 transition-all"
             />
           </label>
