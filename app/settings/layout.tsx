@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 
 export default function SettingsLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-      <div className="mx-auto w-full max-w-6xl">
+    <div className="px-4 sm:px-6 lg:px-10 py-6 sm:py-8">
+      <div className="mx-auto w-full max-w-7xl">
         <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">
           UHAS Procurement Directorate
         </p>
@@ -11,7 +11,7 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
           Settings
         </h1>
 
-        {/* ✅ Quick tip FIRST */}
+        {/*  Quick tip FIRST */}
         <div className="mt-4 rounded-3xl bg-white ring-1 ring-neutral-200/70 p-5 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>

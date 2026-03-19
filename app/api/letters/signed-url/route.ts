@@ -1,14 +1,26 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabaseServer } from "@/lib/supabase/server";
+import { getLetterAccess } from "@/lib/letters/access";
 
 export async function POST(req: Request) {
   const supabaseAuth = await supabaseServer();
   const { data: auth } = await supabaseAuth.auth.getUser();
   if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { filePath } = await req.json();
-  if (!filePath) return NextResponse.json({ error: "Missing filePath" }, { status: 400 });
+  const { filePath, letterId } = await req.json();
+  if (!filePath || !letterId) {
+    return NextResponse.json({ error: "Missing filePath or letterId" }, { status: 400 });
+  }
+
+  const access = await getLetterAccess(auth.user.id, String(letterId));
+  if (!access.allowed || !access.letter) {
+    return NextResponse.json({ error: access.reason || "Access denied" }, { status: 403 });
+  }
+
+  if (!access.letter.file_path || access.letter.file_path !== filePath) {
+    return NextResponse.json({ error: "Invalid file path" }, { status: 400 });
+  }
 
   // service role so it can sign even if RLS/Storage rules are tight
   const admin = createClient(

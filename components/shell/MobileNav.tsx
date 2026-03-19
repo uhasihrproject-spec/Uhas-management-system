@@ -44,6 +44,7 @@ function isActivePath(pathname: string, href: string) {
   if (href === "/dashboard") return pathname === "/dashboard";
   if (href === "/settings") return pathname === "/settings";
   if (href === "/admin") return pathname === "/admin" || pathname.startsWith("/admin/");
+  if (href === "/workflow") return pathname === "/workflow" || pathname.startsWith("/workflow/");
   if (href === "/letters/new") return pathname === "/letters/new";
   if (href === "/letters")
     return pathname === "/letters" || (pathname.startsWith("/letters/") && pathname !== "/letters/new");
@@ -68,6 +69,7 @@ export default function MobileNav({
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", show: true },
+    { href: "/workflow", label: "Workflow", show: true },
     { href: "/letters", label: "Letters", show: true },
     { href: "/letters/new", label: "New letter", show: canManageLetters },
     { href: "/admin", label: "Manage records", show: isAdmin },

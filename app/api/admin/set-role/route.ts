@@ -1,5 +1,17 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+
+function normalizeError(e: any) {
+  const message = String(e?.message || "Unknown error");
+  const lower = message.toLowerCase();
+
+  if (lower.includes("duplicate") || lower.includes("unique")) {
+    return "This value already exists. Use a different one.";
+  }
+
+  return message;
+}
 
 export async function POST(req: Request) {
   const supabase = await supabaseServer();
@@ -18,25 +30,38 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json();
-  const userId = String(body.userId || "");
-  const role = String(body.role || "");
-  const department = body.department ?? null;
-  const full_name = body.full_name ?? null;
+  const userId = String(body.userId || "").trim();
+  const role = String(body.role || "").toUpperCase();
+  const department = String(body.department || "").trim() || null;
+  const full_name = String(body.full_name || "").trim() || null;
 
   if (!userId) return NextResponse.json({ error: "Missing userId" }, { status: 400 });
-  if (!["ADMIN", "SECRETARY", "STAFF"].includes(role)) {
+  if (!role || !["ADMIN", "SECRETARY", "STAFF"].includes(role)) {
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });
   }
 
-  const { error } = await supabase
+  const admin = supabaseAdmin();
+
+  const { error } = await admin
     .from("profiles")
     .update({ role, department, full_name })
     .eq("id", userId);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if (error) {
+    return NextResponse.json({ error: normalizeError(error) }, { status: 400 });
+  }
+
+  // keep auth metadata in sync where possible (non-fatal)
+  await admin.auth.admin.updateUserById(userId, {
+    user_metadata: {
+      role,
+      full_name,
+      department,
+    },
+  });
 
   // audit
-  await supabase.from("audit_logs").insert([
+  await admin.from("audit_logs").insert([
     {
       user_id: auth.user.id,
       action: "ROLE_UPDATED",

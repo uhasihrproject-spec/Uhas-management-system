@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { supabaseServer } from "@/lib/supabase/server";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const q = (searchParams.get("q") || "").trim();
+  const q = String(searchParams.get("q") || "").trim();
 
   if (q.length < 2) return NextResponse.json({ users: [] });
 
@@ -13,20 +13,6 @@ export async function GET(req: Request) {
   if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const admin = supabaseAdmin();
-
-  const { data: me, error: meErr } = await admin
-    .from("profiles")
-    .select("id, role")
-    .eq("id", auth.user.id)
-    .maybeSingle();
-
-  if (meErr) return NextResponse.json({ error: meErr.message }, { status: 400 });
-  if (!me) return NextResponse.json({ error: "Profile not found" }, { status: 400 });
-
-  if (!["ADMIN", "SECRETARY"].includes(me.role || "")) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
   const { data, error } = await admin
     .from("profiles")
     .select("id, full_name, department, role")

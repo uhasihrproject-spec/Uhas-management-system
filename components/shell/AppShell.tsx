@@ -2,42 +2,45 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import MobileNav from "./MobileNav";
-import type { ReactNode } from "react";
 
 function NavItem({
   href,
   label,
   isActive,
+  compact,
 }: {
   href: string;
   label: string;
   isActive: boolean;
+  compact: boolean;
 }) {
   return (
     <Link
       href={href}
-      className={`
-        group relative block rounded-lg px-4 py-2.5 text-sm font-medium
-        transition-all duration-200 ease-out
-        ${
-          isActive
-            ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
-            : "text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900"
-        }
-      `}
-      prefetch={true}
+      title={compact ? label : undefined}
+      className={[
+        "group relative flex items-center rounded-2xl border px-4 py-3 text-sm font-medium transition-all duration-200 ease-out",
+        compact ? "justify-center px-3" : "justify-start",
+        isActive
+          ? "border-emerald-100 bg-emerald-50 text-emerald-700 shadow-sm"
+          : "border-transparent text-neutral-600 hover:border-neutral-200 hover:bg-neutral-50 hover:text-neutral-900",
+      ].join(" ")}
+      prefetch
     >
-      {isActive && (
-        <span className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 bg-yellow-200 rounded-r" />
-      )}
-      <span className="relative">{label}</span>
+      {isActive ? (
+        <span className="absolute left-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-r bg-yellow-200" />
+      ) : null}
+      <span className={`relative ${compact ? "sr-only" : ""}`}>{label}</span>
+      {compact ? <span className="text-xs font-semibold tracking-wide">{label.slice(0, 2).toUpperCase()}</span> : null}
     </Link>
   );
 }
 
-function RoleBadge({ role }: { role: string | null }) {
+function RoleBadge({ role, compact }: { role: string | null; compact: boolean }) {
   const config = {
     ADMIN: "bg-emerald-50 text-emerald-600 border-emerald-100",
     SECRETARY: "bg-amber-50 text-amber-600 border-amber-100",
@@ -48,26 +51,21 @@ function RoleBadge({ role }: { role: string | null }) {
 
   return (
     <span
-      className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium border ${style}`}
+      className={`inline-flex items-center rounded-md border px-2 py-1 text-xs font-medium ${style}`}
+      title={role ?? "STAFF"}
     >
-      {role ?? "STAFF"}
+      {compact ? (role ?? "STAFF").slice(0, 2) : role ?? "STAFF"}
     </span>
   );
 }
 
 function isActivePath(pathname: string, href: string) {
-  // exact match for dashboard/settings/admin
   if (href === "/dashboard") return pathname === "/dashboard";
   if (href === "/settings") return pathname === "/settings";
+  if (href === "/workflow") return pathname === "/workflow" || pathname.startsWith("/workflow/");
   if (href === "/admin") return pathname === "/admin" || pathname.startsWith("/admin/");
-
-  // New Letter must be exact, not part of /letters/*
   if (href === "/letters/new") return pathname === "/letters/new";
-
-  // Letters should be active for list + details + edit, but NOT /letters/new
   if (href === "/letters") return pathname === "/letters" || (pathname.startsWith("/letters/") && pathname !== "/letters/new");
-
-  // fallback
   return pathname === href;
 }
 
@@ -85,9 +83,27 @@ export default function AppShell({
   const pathname = usePathname();
   const canManageLetters = role === "ADMIN" || role === "SECRETARY";
   const isAdmin = role === "ADMIN";
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem("sidebar_collapsed") === "1");
+    } catch {}
+  }, []);
+
+  function toggleCollapsed() {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("sidebar_collapsed", next ? "1" : "0");
+      } catch {}
+      return next;
+    });
+  }
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", show: true },
+    { href: "/workflow", label: "Workflow", show: true },
     { href: "/letters", label: "Letters", show: true },
     { href: "/letters/new", label: "New Letter", show: canManageLetters },
     { href: "/admin", label: "Manage Records", show: isAdmin },
@@ -97,107 +113,109 @@ export default function AppShell({
 
   return (
     <div className="min-h-screen">
-      {/* Mobile header + drawer */}
       <MobileNav userEmail={userEmail} role={role} userName={userName} />
 
       <div className="lg:flex lg:h-screen">
-        {/* Desktop Sidebar */}
-        <aside className="hidden lg:flex lg:flex-col w-[280px] bg-white border-r border-neutral-200">
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Header */}
-            <div className="p-6 border-b border-neutral-200">
+        <aside
+          className={`hidden border-r border-neutral-200 bg-white transition-[width] duration-300 ease-out lg:flex lg:flex-col ${
+            collapsed ? "lg:w-[96px]" : "lg:w-[296px]"
+          }`}
+        >
+          <div className="flex flex-1 flex-col overflow-hidden">
+            <div className="border-b border-neutral-200 p-4">
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] uppercase tracking-wider font-semibold text-neutral-400">
+                <div className={`min-w-0 flex-1 ${collapsed ? "text-center" : ""}`}>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
                     UHAS Procurement
                   </p>
-                  <p className="mt-1 text-lg font-bold text-neutral-900">Records</p>
+                  {!collapsed ? <p className="mt-1 text-lg font-bold text-neutral-900">Records</p> : null}
 
-                  <div className="mt-3 flex items-center gap-2">
-                    <RoleBadge role={role} />
+                  <div className={`mt-3 flex items-center gap-2 ${collapsed ? "justify-center" : ""}`}>
+                    <RoleBadge role={role} compact={collapsed} />
                   </div>
 
-                  <p className="mt-2 text-xs text-neutral-500 truncate">
-                    {displayName}
-                  </p>
+                  {!collapsed ? (
+                    <p className="mt-2 truncate text-xs text-neutral-500">{displayName}</p>
+                  ) : null}
                 </div>
 
-                <div className="h-14 w-14 rounded-lg flex items-center justify-center overflow-hidden">
+                <div className={`overflow-hidden rounded-2xl ${collapsed ? "h-12 w-12" : "h-14 w-14"}`}>
                   <Image
                     src="/logo/Uhas.png"
                     alt="UHAS Logo"
-                    width={48}
-                    height={48}
-                    className="object-contain w-full h-full"
+                    width={56}
+                    height={56}
+                    className="h-full w-full object-contain"
                   />
                 </div>
               </div>
+
+              <button
+                type="button"
+                onClick={toggleCollapsed}
+                className={`mt-4 inline-flex items-center gap-2 rounded-2xl border border-neutral-200 px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 ${
+                  collapsed ? "w-full justify-center" : ""
+                }`}
+                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+                {!collapsed ? "Collapse sidebar" : null}
+              </button>
             </div>
 
-            {/* Nav */}
             <div className="flex-1 overflow-y-auto p-4">
-              <nav className="space-y-1">
+              <nav className="space-y-2">
                 {navItems.map((item) => (
                   <NavItem
                     key={item.href}
                     href={item.href}
                     label={item.label}
                     isActive={isActivePath(pathname, item.href)}
+                    compact={collapsed}
                   />
                 ))}
               </nav>
             </div>
 
-            {/* Footer */}
- {/* Footer Section */}
-<div className="p-4 border-t border-neutral-200">
-  <div className="flex items-center gap-3 mb-3">
-    <div className="h-9 w-9 rounded-lg bg-neutral-100 flex items-center justify-center text-neutral-600 font-semibold text-sm">
-      {(userName ?? userEmail).charAt(0).toUpperCase()}
-    </div>
-    <div className="flex-1 min-w-0">
-      <p className="text-xs font-medium text-neutral-900 truncate">
-        {userName ?? userEmail}
-      </p>
-      <p className="text-xs text-neutral-500">{role ?? "STAFF"}</p>
-    </div>
+            <div className="border-t border-neutral-200 p-4">
+              <div className={`mb-3 flex items-center gap-3 ${collapsed ? "justify-center" : ""}`}>
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-neutral-100 text-sm font-semibold text-neutral-600">
+                  {displayName.charAt(0).toUpperCase()}
+                </div>
+                {!collapsed ? (
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-medium text-neutral-900">{displayName}</p>
+                    <p className="text-xs text-neutral-500">{role ?? "STAFF"}</p>
+                  </div>
+                ) : null}
 
-    {/* Gear */}
-    <Link
-      href="/settings"
-      className={`
-        h-9 w-9 rounded-lg border border-neutral-200 flex items-center justify-center
-        transition-colors
-        ${
-          isActivePath(pathname, "/settings")
-            ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-            : "bg-white text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900"
-        }
-      `}
-      aria-label="Settings"
-      title="Settings"
-    >
-      <span className="text-base leading-none">⚙</span>
-    </Link>
-  </div>
+                <Link
+                  href="/settings"
+                  title="Settings"
+                  className={`flex h-10 w-10 items-center justify-center rounded-2xl border transition-colors ${
+                    isActivePath(pathname, "/settings")
+                      ? "border-emerald-100 bg-emerald-50 text-emerald-700"
+                      : "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900"
+                  }`}
+                  aria-label="Settings"
+                >
+                  <span className="text-base leading-none">⚙</span>
+                </Link>
+              </div>
 
-  <form action="/auth/logout" method="post">
-    <button
-      className="w-full rounded-lg border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-600
-      hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors"
-      type="submit"
-    >
-      Sign Out
-    </button>
-  </form>
-</div>
+              <form action="/auth/logout" method="post">
+                <button
+                  className="w-full rounded-2xl border border-neutral-200 px-4 py-2.5 text-sm font-medium text-neutral-600 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                  type="submit"
+                >
+                  {collapsed ? "Exit" : "Sign Out"}
+                </button>
+              </form>
+            </div>
           </div>
         </aside>
 
-        {/* Main */}
-        <main className="flex-1 min-w-0 bg-neutral-50 lg:overflow-y-auto">
-          {children}
-        </main>
+        <main className="min-w-0 flex-1 bg-neutral-50 lg:overflow-y-auto">{children}</main>
       </div>
     </div>
   );
