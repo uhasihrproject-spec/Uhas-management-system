@@ -11,6 +11,10 @@ export async function POST(req: Request) {
   const supabaseAuth = await supabaseServer();
   const { data: auth } = await supabaseAuth.auth.getUser();
   if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { data: profile } = await supabaseAuth.from("profiles").select("role").eq("id", auth.user.id).maybeSingle();
+  if (!["ADMIN", "SECRETARY"].includes(profile?.role || "")) {
+    return NextResponse.json({ error: "Only admin or secretary can create letters." }, { status: 403 });
+  }
 
   const { direction, year } = await req.json();
 

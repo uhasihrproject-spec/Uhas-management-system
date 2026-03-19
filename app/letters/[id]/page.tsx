@@ -5,6 +5,9 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import LetterViewer from "./LetterViewer";
 import { getLetterAccess } from "@/lib/letters/access";
 import { ArrowLeft, ChevronDown, ShieldCheck, Users } from "lucide-react";
+import WorkflowTimeline from "@/components/workflow/WorkflowTimeline";
+import WorkflowActions from "@/components/workflow/WorkflowActions";
+import { listWorkflowSteps } from "@/lib/workflow";
 
 type Direction = "INCOMING" | "OUTGOING";
 type Conf = "PUBLIC" | "INTERNAL" | "CONFIDENTIAL";
@@ -139,6 +142,7 @@ export default async function LetterDetailsPage({
 
   const direction = letter.direction as Direction | null;
   const conf = letter.confidentiality as Conf | null;
+  const workflow = await listWorkflowSteps(letter.id);
 
   const targetText =
     conf === "CONFIDENTIAL"
@@ -262,8 +266,8 @@ export default async function LetterDetailsPage({
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-5">
-        <div className="lg:col-span-2 space-y-4">
+      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-12">
+        <div className="xl:col-span-4 space-y-4">
           <div className="rounded-3xl bg-white p-6 ring-1 ring-neutral-200/70">
             <h2 className="text-sm font-semibold">Details</h2>
             <dl className="mt-4 space-y-3 text-sm">
@@ -300,7 +304,9 @@ export default async function LetterDetailsPage({
           </div>
         </div>
 
-        <div className="lg:col-span-3">
+        <div className="xl:col-span-8 space-y-6">
+          <WorkflowTimeline workflow={workflow} letterId={letter.id} />
+          <WorkflowActions letterId={letter.id} workflow={workflow} role={access.role} userId={auth.user.id} />
           <LetterViewer
             letterId={letter.id}
             filePath={letter.file_path}

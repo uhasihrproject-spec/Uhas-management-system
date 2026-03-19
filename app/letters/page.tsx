@@ -124,63 +124,22 @@ export default async function LettersPage({
     if (error) errorMessage = error.message;
     rows = data || [];
   } else if (auth.user) {
-    const userId = auth.user.id;
+    const { data: stepLinks, error: stepErr } = await admin
+      .from("letter_workflow_steps")
+      .select("letter_id")
+      .eq("user_id", auth.user.id)
+      .limit(5000);
 
-    const createdQ = applyFilters(admin.from("letters").select(SELECT_COLUMNS).eq("created_by", userId), filters);
-    const publicQ = applyFilters(
-      admin.from("letters").select(SELECT_COLUMNS).eq("confidentiality", "PUBLIC"),
-      filters
-    );
-
-    const internalQ = myDepartment
-      ? applyFilters(
-          admin
-            .from("letters")
-            .select(SELECT_COLUMNS)
-            .eq("confidentiality", "INTERNAL")
-            .eq("recipient_department", myDepartment),
-          filters
-        )
-      : Promise.resolve({ data: [], error: null } as any);
-
-    const confidentialIdsQ = admin.from("letter_recipients").select("letter_id").eq("user_id", userId).limit(5000);
-
-    const [createdRes, publicRes, internalRes, confidentialIdsRes] = await Promise.all([
-      createdQ,
-      publicQ,
-      internalQ,
-      confidentialIdsQ,
-    ]);
-
-    const recipientIds = (confidentialIdsRes.data || []).map((x: any) => x.letter_id).filter(Boolean);
-
-    const confidentialRes = recipientIds.length
-      ? await applyFilters(
-          admin.from("letters").select(SELECT_COLUMNS).in("id", recipientIds).eq("confidentiality", "CONFIDENTIAL"),
-          filters
-        )
-      : { data: [], error: null };
-
-    const maybeError = [
-      createdRes.error,
-      publicRes.error,
-      (internalRes as any)?.error,
-      confidentialIdsRes.error,
-      (confidentialRes as any)?.error,
-    ].find(Boolean) as any;
-
-    if (maybeError) errorMessage = maybeError.message || "Failed to load letters";
-
-    const map = new Map<string, any>();
-    for (const list of [createdRes.data || [], publicRes.data || [], (internalRes as any)?.data || [], (confidentialRes as any)?.data || []]) {
-      for (const row of list) {
-        if (row?.id && !map.has(row.id)) map.set(row.id, row);
-      }
+    if (stepErr && !String(stepErr.message || "").toLowerCase().includes("letter_workflow_steps")) {
+      errorMessage = stepErr.message;
     }
 
-    rows = Array.from(map.values())
-      .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")))
-      .slice(0, MAX_ROWS);
+    const stepIds = (stepLinks || []).map((x: any) => x.letter_id).filter(Boolean);
+    if (stepIds.length) {
+      const { data, error } = await applyFilters(admin.from("letters").select(SELECT_COLUMNS).in("id", stepIds), filters);
+      if (error) errorMessage = error.message;
+      rows = data || [];
+    }
   }
 
   return (
@@ -194,7 +153,7 @@ export default async function LettersPage({
           {showHints ? (
             <>
               <p className="mt-2 text-sm sm:text-base text-neutral-800">
-                Search and manage incoming/outgoing letters. Past years are automatically archived.
+                Search and manage incoming/outgoing letters. Staff only see letters assigned to their workflow steps.
               </p>
               <p className="mt-1 text-sm text-neutral-700">
                 {isArchiveView
