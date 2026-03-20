@@ -279,7 +279,7 @@ export function NewPipelineForm({ preselectedLetterId, letters, users }: Props) 
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+    <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
       <div className="mb-6">
         <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">UHAS Procurement Directorate</p>
         <h1 className="mt-2 text-2xl font-semibold text-neutral-900">Track Progress</h1>
@@ -289,13 +289,13 @@ export function NewPipelineForm({ preselectedLetterId, letters, users }: Props) 
       </div>
 
       <div className="space-y-5">
-        <section className="rounded-3xl bg-white p-5 ring-1 ring-neutral-200/70">
+        <section className="rounded-3xl border border-neutral-200 bg-white p-6 shadow-sm">
           <p className="text-sm font-semibold text-neutral-900">What are you tracking?</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <button type="button" onClick={() => setSourceType("letter")} className={`rounded-2xl px-4 py-2 text-sm transition ${sourceType === "letter" ? "bg-neutral-900 text-white" : "border border-neutral-200 text-neutral-600"}`}>
+            <button type="button" onClick={() => setSourceType("letter")} className={`rounded-2xl px-4 py-2 text-sm transition ${sourceType === "letter" ? "bg-emerald-700 text-white" : "border border-neutral-200 text-neutral-600 hover:bg-neutral-50"}`}>
               Letter in system
             </button>
-            <button type="button" onClick={() => setSourceType("file")} className={`rounded-2xl px-4 py-2 text-sm transition ${sourceType === "file" ? "bg-neutral-900 text-white" : "border border-neutral-200 text-neutral-600"}`}>
+            <button type="button" onClick={() => setSourceType("file")} className={`rounded-2xl px-4 py-2 text-sm transition ${sourceType === "file" ? "bg-emerald-700 text-white" : "border border-neutral-200 text-neutral-600 hover:bg-neutral-50"}`}>
               Physical file not in system
             </button>
           </div>
@@ -322,7 +322,7 @@ export function NewPipelineForm({ preselectedLetterId, letters, users }: Props) 
           )}
         </section>
 
-        <section className="rounded-3xl bg-white p-5 ring-1 ring-neutral-200/70">
+        <section className="rounded-3xl border border-neutral-200 bg-white p-6 shadow-sm">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-neutral-900">Who should handle it?</p>
@@ -335,7 +335,7 @@ export function NewPipelineForm({ preselectedLetterId, letters, users }: Props) 
         {error && <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
         <div className="flex flex-wrap gap-3">
-          <button type="button" onClick={handleSubmit} disabled={isPending} className="rounded-2xl bg-neutral-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-60">
+          <button type="button" onClick={handleSubmit} disabled={isPending} className="rounded-2xl bg-emerald-700 px-5 py-3 text-sm font-medium text-white transition hover:bg-emerald-800 disabled:opacity-60">
             {isPending ? "Saving…" : "Publish track progress"}
           </button>
           <button type="button" onClick={() => router.push("/pipeline")} className="rounded-2xl border border-neutral-200 px-5 py-3 text-sm text-neutral-600 transition hover:bg-white">Cancel</button>

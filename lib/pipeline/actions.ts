@@ -131,6 +131,7 @@ export async function createPipeline(
 
       const manualRef = input.manual_item.ref_no?.trim() || await generateManualRef()
       const now = new Date().toISOString()
+      const safeRef = manualRef.replace(/[^a-zA-Z0-9-_]+/g, "-")
       const { data: createdLetter, error: createLetterError } = await admin
         .from("letters")
         .insert({
@@ -144,7 +145,10 @@ export async function createPipeline(
           confidentiality: "PUBLIC",
           status: "ASSIGNED",
           tags: ["track-progress", "manual-file"],
+          file_bucket: "letters",
+          file_path: `manual/${safeRef}.txt`,
           file_name: fileName,
+          mime_type: "text/plain",
           created_by: actor.id,
         })
         .select("id")
