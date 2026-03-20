@@ -42,6 +42,28 @@ function isPrivileged(role: UserRole) {
   return role === "ADMIN" || role === "SECRETARY"
 }
 
+async function generateManualRef() {
+  const admin = supabaseAdmin()
+  const year = new Date().getFullYear()
+  const prefix = `UHAS/TRK/FILE/${year}/`
+
+  const { data } = await admin
+    .from("letters")
+    .select("ref_no")
+    .like("ref_no", `${prefix}%`)
+    .order("created_at", { ascending: false })
+    .limit(1)
+
+  let next = 1
+  const last = data?.[0]?.ref_no as string | undefined
+  if (last && last.startsWith(prefix)) {
+    const num = Number(last.slice(prefix.length))
+    if (Number.isFinite(num) && num > 0) next = num + 1
+  }
+
+  return `${prefix}${String(next).padStart(4, "0")}`
+}
+
 // ── Letter access check ────────────────────────────────────────────────────
 
 async function assertLetterAccess(letterId: string, actorId: string, actorRole: UserRole) {
@@ -99,14 +121,50 @@ export async function createPipeline(
     if (!input.steps.length)
       return { ok: false, error: "At least one step is required." }
 
-    await assertLetterAccess(input.letter_id, actor.id, actor.role)
-
     const admin = supabaseAdmin()
+
+    let letterId = input.letter_id ?? null
+
+    if (!letterId && input.manual_item) {
+      const fileName = input.manual_item.file_name.trim()
+      if (!fileName) return { ok: false, error: "File name is required." }
+
+      const manualRef = input.manual_item.ref_no?.trim() || await generateManualRef()
+      const now = new Date().toISOString()
+      const { data: createdLetter, error: createLetterError } = await admin
+        .from("letters")
+        .insert({
+          ref_no: manualRef,
+          direction: "INCOMING",
+          date_received: now.slice(0, 10),
+          sender_name: "Physical file",
+          recipient_department: actor.department ?? null,
+          subject: input.manual_item.subject?.trim() || fileName,
+          summary: "Manual physical file tracked through Track Progress.",
+          confidentiality: "PUBLIC",
+          status: "ASSIGNED",
+          tags: ["track-progress", "manual-file"],
+          file_name: fileName,
+          created_by: actor.id,
+        })
+        .select("id")
+        .single()
+
+      if (createLetterError || !createdLetter)
+        return { ok: false, error: createLetterError?.message || "Failed to create the file record." }
+
+      letterId = createdLetter.id
+    }
+
+    if (!letterId)
+      return { ok: false, error: "Select a letter or enter a file name first." }
+
+    await assertLetterAccess(letterId, actor.id, actor.role)
 
     const { data: existing } = await admin
       .from("letter_pipelines")
       .select("id")
-      .eq("letter_id", input.letter_id)
+      .eq("letter_id", letterId)
       .neq("status", "CANCELLED")
       .maybeSingle()
 
@@ -116,7 +174,7 @@ export async function createPipeline(
     const { data: pipeline, error: pErr } = await admin
       .from("letter_pipelines")
       .insert({
-        letter_id:          input.letter_id,
+        letter_id:          letterId,
         status:             "IN_PROGRESS",
         current_step_order: 1,
         created_by:         actor.id,
@@ -149,9 +207,9 @@ export async function createPipeline(
     await admin
       .from("letters")
       .update({ status: "ASSIGNED", updated_at: now })
-      .eq("id", input.letter_id)
+      .eq("id", letterId)
 
-    await audit(input.letter_id, actor.id, "PIPELINE_CREATED", {
+    await audit(letterId, actor.id, "PIPELINE_CREATED", {
       pipeline_id: pipeline.id,
       step_count:  input.steps.length,
     })

@@ -278,21 +278,22 @@ export function PipelineDetailView({ pipeline, letter, currentUser, auditLog, al
             </section>
 
             {pipeline ? (
-              <section className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-[28px] bg-white px-5 py-4 ring-1 ring-neutral-200/70">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">Who has it now</p>
-                  <p className="mt-2 text-lg font-semibold text-neutral-900">{active?.assigned_user?.full_name ?? (pipeline.status === "COMPLETED" ? "Completed" : "Waiting")}</p>
-                  <p className="mt-1 text-xs text-neutral-500">{active?.assigned_at ? `Received ${fmtDateTime(active.assigned_at)}` : "No active holder"}</p>
-                </div>
-                <div className="rounded-[28px] bg-white px-5 py-4 ring-1 ring-neutral-200/70">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">Next step</p>
-                  <p className="mt-2 text-lg font-semibold text-neutral-900">{next?.assigned_user?.full_name ?? (pipeline.status === "COMPLETED" ? "Finished" : "Final step")}</p>
-                  <p className="mt-1 text-xs text-neutral-500">{next?.title ?? (pipeline.status === "COMPLETED" ? "All steps done" : "No later step pending")}</p>
-                </div>
-                <div className="rounded-[28px] bg-white px-5 py-4 ring-1 ring-neutral-200/70">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">Progress</p>
-                  <p className="mt-2 text-lg font-semibold text-neutral-900">{steps.filter(step => step.status === "DONE").length}/{steps.length}</p>
-                  <p className="mt-1 text-xs text-neutral-500">Steps completed</p>
+              <section className="rounded-[28px] bg-white px-5 py-4 ring-1 ring-neutral-200/70">
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div>
+                    <p className="text-xs text-neutral-500">Current holder</p>
+                    <p className="mt-1 text-sm font-semibold text-neutral-900">{active?.assigned_user?.full_name ?? (pipeline.status === "COMPLETED" ? "Completed" : "Waiting")}</p>
+                    <p className="mt-1 text-xs text-neutral-500">{active?.assigned_at ? `Received ${fmtDateTime(active.assigned_at)}` : "No active holder"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-neutral-500">Next</p>
+                    <p className="mt-1 text-sm font-semibold text-neutral-900">{next?.assigned_user?.full_name ?? (pipeline.status === "COMPLETED" ? "Finished" : "Final step")}</p>
+                    <p className="mt-1 text-xs text-neutral-500">{next?.title ?? (pipeline.status === "COMPLETED" ? "All steps done" : "No later step pending")}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-neutral-500">Progress</p>
+                    <p className="mt-1 text-sm font-semibold text-neutral-900">{steps.filter(step => step.status === "DONE").length}/{steps.length} steps</p>
+                  </div>
                 </div>
               </section>
             ) : null}

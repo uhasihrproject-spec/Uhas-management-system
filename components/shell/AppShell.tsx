@@ -181,7 +181,7 @@ export default function AppShell({
     { href: "/dashboard",   label: "Dashboard",     show: true },
     { href: "/letters",     label: "Letters",        show: true },
     { href: "/letters/new", label: "New Letter",     show: canManageLetters },
-    { href: "/pipeline",    label: "Pipeline",       show: true },
+    { href: "/pipeline",    label: "Track Progress",       show: true },
     { href: "/admin",       label: "Manage Records", show: isAdmin },
   ].filter((i) => i.show);
 

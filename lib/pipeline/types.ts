@@ -72,7 +72,12 @@ export interface LetterSummary {
 // ── Server action inputs ───────────────────────────────────────────────────
 
 export interface CreatePipelineInput {
-  letter_id: string
+  letter_id?: string
+  manual_item?: {
+    ref_no?: string
+    file_name: string
+    subject?: string
+  }
   steps: {
     step_order:          number
     title:               string
