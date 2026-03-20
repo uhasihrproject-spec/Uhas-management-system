@@ -526,8 +526,7 @@ export async function getPipelineAuditLog(letterId: string) {
 // ── 8. List for pipeline page — includes full step chain ──────────────────
 // KEY RULE ENFORCED:
 //   ADMIN/SECRETARY: see all pipelines
-//   STAFF: only see pipelines where they are explicitly assigned to a step
-//          AND the letter passes letter-level access checks
+//   STAFF: see all non-cancelled pipelines they are allowed to access
 
 export async function getLettersWithPipelines() {
   const actor = await getActor()
@@ -559,45 +558,46 @@ export async function getLettersWithPipelines() {
       letter:              row.letter,
     }))
   } else {
-    // STAFF: only pipelines where this user is an assigned step handler
-    const { data: stepRows } = await admin
-      .from("letter_pipeline_steps")
+    // STAFF: all non-cancelled pipelines they are allowed to access
+    const { data } = await admin
+      .from("letter_pipelines")
       .select(`
-        pipeline:letter_pipelines!pipeline_id(
-          id, status, current_step_order, started_at, completed_at,
-          letter:letters!letter_id(
-            id, ref_no, subject, sender_name, date_received,
-            status, confidentiality, recipient_department, file_name
-          )
+        id, status, current_step_order, started_at, completed_at,
+        letter:letters!letter_id(
+          id, ref_no, subject, sender_name, date_received,
+          status, confidentiality, recipient_department, file_name, created_by
         )
       `)
-      .eq("assigned_user_id", actor.id)
-      .neq("pipeline_id", null)
+      .neq("status", "CANCELLED")
+      .order("started_at", { ascending: false })
+      .limit(200)
 
-    const seen = new Set<string>()
-    for (const row of stepRows ?? []) {
-      const pipe = row.pipeline as any
-      if (!pipe || seen.has(pipe.id)) continue
-      // Additional letter-level access check (KEY RULE)
-      const letter = pipe.letter
+    for (const row of data ?? []) {
+      const letter = row.letter as any
       if (!letter) continue
+
+      let allowed = false
+      if (letter.created_by === actor.id) allowed = true
+      if (letter.confidentiality === "PUBLIC") allowed = true
+      if (letter.confidentiality === "INTERNAL" && actor.department === letter.recipient_department) allowed = true
       if (letter.confidentiality === "CONFIDENTIAL") {
-        // must be in letter_recipients too
         const { data: rec } = await admin
           .from("letter_recipients")
           .select("letter_id")
           .eq("letter_id", letter.id)
           .eq("user_id", actor.id)
           .maybeSingle()
-        if (!rec && letter.created_by !== actor.id) continue
+        if (rec) allowed = true
       }
-      seen.add(pipe.id)
+
+      if (!allowed) continue
+
       pipelineRows.push({
-        pipeline_id:        pipe.id,
-        pipeline_status:    pipe.status,
-        current_step_order: pipe.current_step_order,
-        started_at:         pipe.started_at,
-        completed_at:       pipe.completed_at,
+        pipeline_id:        row.id,
+        pipeline_status:    row.status,
+        current_step_order: row.current_step_order,
+        started_at:         row.started_at,
+        completed_at:       row.completed_at,
         letter,
       })
     }

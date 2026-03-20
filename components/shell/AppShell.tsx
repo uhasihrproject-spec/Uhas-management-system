@@ -72,7 +72,7 @@ function NavIcon({ name, active }: { name: string; active?: boolean }) {
       </svg>
     ),
   };
-  return <>{icons[name] ?? null}</>;
+  return <>{icons[name] ?? (name === "Track Progress" ? icons.Pipeline : null)}</>;
 }
 
 // ─── Nav item — icon fades out, text fades in, same row ──────────────────────
