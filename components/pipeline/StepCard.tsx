@@ -31,7 +31,7 @@ interface Props {
   step:       PipelineStep
   isLast:     boolean   // last in the rendered list (controls connector line)
   isMine:     boolean   // current user is the assigned holder of this step
-  isLastStep: boolean   // this is the final step in the pipeline (no steps after)
+  isLastStep: boolean   // there is no later pending step, so this action should finish the workflow
   canManage:  boolean   // ADMIN or SECRETARY
   allUsers:   SlimProfile[]
   pipelineId: string

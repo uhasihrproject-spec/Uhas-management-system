@@ -80,7 +80,7 @@ function CurrentHolder({ pipeline, steps }: { pipeline: Pipeline; steps: Pipelin
   )
 }
 
-function StepRow({ step, isLast, isMine, isLastStep, canManage, allUsers, pipelineId, onToast }: { step: PipelineStep; isLast: boolean; isMine: boolean; isLastStep: boolean; canManage: boolean; allUsers: SlimProfile[]; pipelineId: string; onToast: (msg: string) => void }) {
+function StepRow({ step, isLast, isMine, hasNextPendingStep, canManage, allUsers, pipelineId, onToast }: { step: PipelineStep; isLast: boolean; isMine: boolean; hasNextPendingStep: boolean; canManage: boolean; allUsers: SlimProfile[]; pipelineId: string; onToast: (msg: string) => void }) {
   const [showAction, setShowAction] = useState(false)
   const [showReassign, setShowReassign] = useState(false)
   const [remarks, setRemarks] = useState("")
@@ -92,7 +92,7 @@ function StepRow({ step, isLast, isMine, isLastStep, canManage, allUsers, pipeli
   const handlePassToNext = () => {
     setErr(null)
     startTransition(async () => {
-      const fn = isLastStep ? markDone : passToNext
+      const fn = hasNextPendingStep ? passToNext : markDone
       const res = await fn({ pipeline_id: pipelineId, step_id: step.id, remarks: remarks || undefined })
       if (!res.ok) {
         setErr(res.error)
@@ -100,8 +100,8 @@ function StepRow({ step, isLast, isMine, isLastStep, canManage, allUsers, pipeli
       }
       setShowAction(false)
       setRemarks("")
-      const nextUserName = !isLastStep && res.data && "next_user_name" in res.data ? res.data.next_user_name : null
-      onToast(isLastStep ? "Final step completed." : nextUserName ? `Moved to ${nextUserName}.` : "Moved to the next person.")
+      const nextUserName = hasNextPendingStep && res.data && "next_user_name" in res.data ? res.data.next_user_name : null
+      onToast(hasNextPendingStep ? (nextUserName ? `Moved to ${nextUserName}.` : "Moved to the next person.") : "Final step completed.")
     })
   }
 
@@ -153,14 +153,14 @@ function StepRow({ step, isLast, isMine, isLastStep, canManage, allUsers, pipeli
 
           {isMine && step.status === "ACTIVE" && !showAction && !showReassign && (
             <div className="mt-3 flex flex-wrap gap-2">
-              <button onClick={() => setShowAction(true)} className={`rounded-2xl px-4 py-2 text-sm font-medium text-white transition ${isLastStep ? "bg-green-700 hover:bg-green-800" : "bg-neutral-900 hover:bg-neutral-700"}`}>{isLastStep ? "Mark as done" : "Move to next person"}</button>
+              <button onClick={() => setShowAction(true)} className={`rounded-2xl px-4 py-2 text-sm font-medium text-white transition ${hasNextPendingStep ? "bg-neutral-900 hover:bg-neutral-700" : "bg-green-700 hover:bg-green-800"}`}>{hasNextPendingStep ? "Move to next person" : "Mark as done"}</button>
             </div>
           )}
 
           {showAction && (
             <div className="mt-3 max-w-lg rounded-3xl border border-neutral-200 bg-neutral-50 p-4">
               <p className="text-sm font-semibold text-neutral-900">Confirm this step</p>
-              <p className="mt-1 text-xs text-neutral-500">{isLastStep ? "This finishes the workflow and marks the item completed." : "This marks your step as done and moves the file to the next person in the chain."}</p>
+              <p className="mt-1 text-xs text-neutral-500">{hasNextPendingStep ? "This marks your step as done and moves the file to the next person in the chain." : "This finishes the workflow and marks the item completed."}</p>
               <textarea value={remarks} onChange={e => setRemarks(e.target.value)} rows={3} className="mt-3 w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-neutral-200" placeholder="Optional note…" />
               <div className="mt-3 flex flex-wrap gap-2">
                 <button onClick={handlePassToNext} disabled={isPending} className="rounded-2xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50">{isPending ? "Processing…" : "Confirm"}</button>
@@ -284,7 +284,17 @@ export function PipelineDetailView({ pipeline, letter, currentUser, auditLog, al
                   </div>
                 </div>
                 {steps.map((step, index) => (
-                  <StepRow key={step.id} step={step} isLast={index === steps.length - 1} isMine={step.assigned_user_id === currentUser.id} isLastStep={index === steps.length - 1} canManage={canManage} allUsers={allUsers} pipelineId={pipeline.id} onToast={showToast} />
+                  <StepRow
+                    key={step.id}
+                    step={step}
+                    isLast={index === steps.length - 1}
+                    isMine={step.assigned_user_id === currentUser.id}
+                    hasNextPendingStep={steps.some(candidate => candidate.step_order > step.step_order && candidate.status === "PENDING")}
+                    canManage={canManage}
+                    allUsers={allUsers}
+                    pipelineId={pipeline.id}
+                    onToast={showToast}
+                  />
                 ))}
 
                 {canManage && pipeline.status === "IN_PROGRESS" && (
