@@ -32,6 +32,7 @@ interface Props {
   isLast:     boolean   // last in the rendered list (controls connector line)
   isMine:     boolean   // current user is the assigned holder of this step
   isLastStep: boolean   // there is no later pending step, so this action should finish the workflow
+  nextStepNeedsAssignee?: boolean
   canManage:  boolean   // ADMIN or SECRETARY
   allUsers:   SlimProfile[]
   pipelineId: string
@@ -41,13 +42,14 @@ interface Props {
 // ── Component ──────────────────────────────────────────────────────────────
 
 export function StepCard({
-  step, isLast, isMine, isLastStep, canManage, allUsers, pipelineId, onToast,
+  step, isLast, isMine, isLastStep, nextStepNeedsAssignee = false, canManage, allUsers, pipelineId, onToast,
 }: Props) {
   const [showAction, setShowAction]   = useState(false)
   const [showReassign, setShowReassign] = useState(false)
   const [remarks, setRemarks]           = useState("")
   const [newUserId, setNewUserId]       = useState("")
   const [fieldError, setFieldError]     = useState<string | null>(null)
+  const [nextUserId, setNextUserId]       = useState("")
   const [isPending, startTransition]    = useTransition()
 
   // ── Pass to next ──────────────────────────────────────────────────────────
@@ -58,10 +60,12 @@ export function StepCard({
         pipeline_id: pipelineId,
         step_id:     step.id,
         remarks:     remarks || undefined,
+        next_user_id: nextStepNeedsAssignee ? nextUserId || undefined : undefined,
       })
       if (!res.ok) { setFieldError(res.error); return }
       setShowAction(false)
       setRemarks("")
+      setNextUserId("")
       onToast(
         res.data.next_user_name
           ? `Passed to ${res.data.next_user_name}.`
@@ -78,6 +82,7 @@ export function StepCard({
         pipeline_id: pipelineId,
         step_id:     step.id,
         remarks:     remarks || undefined,
+        next_user_id: nextStepNeedsAssignee ? nextUserId || undefined : undefined,
       })
       if (!res.ok) { setFieldError(res.error); return }
       setShowAction(false)
@@ -218,6 +223,15 @@ export function StepCard({
                 ? "This is the final step. Completing it will close the pipeline and mark the letter as Completed."
                 : "The file will be passed to the next handler after you confirm."}
             </p>
+            {!isLastStep && nextStepNeedsAssignee && (
+              <div className="mb-3">
+                <label className="text-[11px] uppercase tracking-wide text-neutral-400">Choose next person</label>
+                <select value={nextUserId} onChange={e => setNextUserId(e.target.value)} className="mt-1 w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-800 focus:outline-none focus:ring-1 focus:ring-neutral-300">
+                  <option value="">Select a person…</option>
+                  {allUsers.map(user => <option key={user.id} value={user.id}>{user.full_name}{user.department ? ` — ${user.department}` : ""}</option>)}
+                </select>
+              </div>
+            )}
             <label className="text-[11px] uppercase tracking-wide text-neutral-400">
               Remark (optional)
             </label>
@@ -234,7 +248,7 @@ export function StepCard({
             <div className="mt-3 flex gap-2">
               <button
                 onClick={isLastStep ? handleMarkDone : handlePass}
-                disabled={isPending}
+                disabled={isPending || (!isLastStep && nextStepNeedsAssignee && !nextUserId)}
                 className={`rounded-xl px-4 py-2 text-xs font-medium text-white
                   disabled:opacity-50 transition-colors
                   ${isLastStep ? "bg-green-700 hover:bg-green-800" : "bg-neutral-900 hover:bg-neutral-700"}`}
@@ -247,7 +261,7 @@ export function StepCard({
               </button>
               <button
                 onClick={() => { setShowAction(false); setRemarks(""); setFieldError(null) }}
-                disabled={isPending}
+                disabled={isPending || (!isLastStep && nextStepNeedsAssignee && !nextUserId)}
                 className="rounded-xl border border-neutral-200 px-3 py-2 text-xs
                   text-neutral-500 hover:bg-neutral-50 transition-colors"
               >

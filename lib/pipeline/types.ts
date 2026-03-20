@@ -82,15 +82,16 @@ export interface CreatePipelineInput {
     step_order:          number
     title:               string
     action_note?:        string
-    assigned_user_id:    string
+    assigned_user_id?:   string | null
     assigned_department?: string
   }[]
 }
 
 export interface CompleteStepInput {
-  pipeline_id: string
-  step_id:     string
-  remarks?:    string
+  pipeline_id:  string
+  step_id:      string
+  remarks?:     string
+  next_user_id?: string
 }
 
 export interface ReassignStepInput {

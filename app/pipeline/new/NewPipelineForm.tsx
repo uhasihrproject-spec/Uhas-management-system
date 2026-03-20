@@ -115,7 +115,7 @@ function SearchableLetterPicker({ letters, selected, onSelect }: { letters: Lett
   )
 }
 
-function UserPicker({ users, selectedUserId, onSelect }: { users: SlimProfile[]; selectedUserId: string; onSelect: (value: string) => void }) {
+function UserPicker({ users, selectedUserId, onSelect, allowUnassigned = false }: { users: SlimProfile[]; selectedUserId: string; onSelect: (value: string) => void; allowUnassigned?: boolean }) {
   const [query, setQuery] = useState("")
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -157,6 +157,15 @@ function UserPicker({ users, selectedUserId, onSelect }: { users: SlimProfile[];
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search name or department…" className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-200" />
           </div>
           <div className="max-h-64 overflow-y-auto p-2">
+            {allowUnassigned && (
+              <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => { onSelect(""); setOpen(false); setQuery("") }} className={`mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${!selectedUserId ? "bg-neutral-900 text-white" : "hover:bg-neutral-50"}`}>
+                <span className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-semibold ${!selectedUserId ? "bg-white/10 text-white" : "bg-neutral-100 text-neutral-700"}`}>–</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">Leave unassigned</span>
+                  <span className={`block truncate text-xs ${!selectedUserId ? "text-neutral-300" : "text-neutral-500"}`}>Pick the next person when handing it over</span>
+                </span>
+              </button>
+            )}
             {filtered.map(user => (
               <button key={user.id} type="button" onMouseDown={e => e.preventDefault()} onClick={() => { onSelect(user.id); setOpen(false); setQuery("") }} className={`mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition last:mb-0 ${selectedUserId === user.id ? "bg-neutral-900 text-white" : "hover:bg-neutral-50"}`}>
                 <span className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-semibold ${selectedUserId === user.id ? "bg-white/10" : "bg-neutral-100 text-neutral-700"}`}>{initials(user.full_name)}</span>
@@ -181,7 +190,7 @@ function StepEditor({ steps, users, onChange, onAdd, onRemove }: { steps: StepDr
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-neutral-900">Step {index + 1}</p>
-              <p className="text-xs text-neutral-500">3-day timer starts when this person receives it.</p>
+              <p className="text-xs text-neutral-500">3-day timer starts when this person receives it. Future steps can be left unassigned and chosen during handoff.</p>
             </div>
             {steps.length > 1 && <button type="button" onClick={() => onRemove(step.key)} className="text-xs text-neutral-400 hover:text-red-600">Remove</button>}
           </div>
@@ -189,7 +198,8 @@ function StepEditor({ steps, users, onChange, onAdd, onRemove }: { steps: StepDr
           <div className="grid gap-3 md:grid-cols-2">
             <div>
               <label className="mb-2 block text-xs font-medium text-neutral-500">Person</label>
-              <UserPicker users={users} selectedUserId={step.user_id} onSelect={value => onChange(step.key, "user_id", value)} />
+              <UserPicker users={users} selectedUserId={step.user_id} onSelect={value => onChange(step.key, "user_id", value)} allowUnassigned={index > 0} />
+              {index > 0 && !step.user_id && <p className="mt-2 text-xs text-neutral-400">This step will ask for a person when the previous handler moves the file forward.</p>}
             </div>
             <div>
               <label className="mb-2 block text-xs font-medium text-neutral-500">What should they do?</label>
@@ -245,8 +255,8 @@ export function NewPipelineForm({ preselectedLetterId, letters, users }: Props) 
       return
     }
 
-    if (steps.some(step => !step.user_id || !step.title.trim())) {
-      setError("Each step needs both a person and a short action.")
+    if (!steps[0]?.user_id || steps.some(step => !step.title.trim())) {
+      setError("The first step needs a person, and every step needs a short action.")
       return
     }
 
@@ -262,7 +272,7 @@ export function NewPipelineForm({ preselectedLetterId, letters, users }: Props) 
           step_order: index + 1,
           title: step.title.trim(),
           action_note: step.action_note.trim() || undefined,
-          assigned_user_id: step.user_id,
+          assigned_user_id: step.user_id || undefined,
         })),
       }
 

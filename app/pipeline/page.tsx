@@ -26,6 +26,11 @@ export default async function PipelinePage() {
 
   const canCreate = profile.role === "ADMIN" || profile.role === "SECRETARY"
 
+  const { data: users } = await admin
+    .from("profiles")
+    .select("id, full_name, role, department")
+    .order("full_name")
+
   let rows: Awaited<ReturnType<typeof getLettersWithPipelines>> = []
   try {
     rows = await getLettersWithPipelines()
@@ -88,6 +93,7 @@ export default async function PipelinePage() {
             myRows={myRows as any}
             otherRows={otherRows as any}
             currentUserId={profile.id}
+            allUsers={(users ?? []) as any}
           />
         )}
       </div>

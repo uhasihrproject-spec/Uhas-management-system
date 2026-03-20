@@ -173,6 +173,7 @@ export function PipelineView({
                       isLast={i === steps.length - 1}
                       isMine={step.assigned_user_id === currentUser.id}
                       isLastStep={!steps.some((candidate) => candidate.step_order > step.step_order && candidate.status === "PENDING")}
+                      nextStepNeedsAssignee={!!steps.find((candidate) => candidate.step_order > step.step_order && candidate.status === "PENDING" && !candidate.assigned_user_id)}
                       canManage={canManage}
                       allUsers={allUsers}
                       pipelineId={pipeline.id}

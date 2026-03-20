@@ -73,18 +73,19 @@ function CurrentHolder({ pipeline, steps }: { pipeline: Pipeline; steps: Pipelin
             {deadline && <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ${deadline.tone}`}>{deadline.label}</span>}
             <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/90">{done} of {total} steps done</span>
           </div>
-          {next && <p className="mt-4 text-sm text-neutral-300">Next up: <span className="font-medium text-white">{next.assigned_user?.full_name ?? "—"}</span> · {next.title}</p>}
+          {next && <p className="mt-4 text-sm text-neutral-300">Next up: <span className="font-medium text-white">{next.assigned_user?.full_name ?? "Choose when handing over"}</span> · {next.title}</p>}
         </>
       ) : <p className="mt-3 text-sm text-neutral-300">No active step found.</p>}
     </div>
   )
 }
 
-function StepRow({ step, isLast, isMine, hasNextPendingStep, canManage, allUsers, pipelineId, onToast }: { step: PipelineStep; isLast: boolean; isMine: boolean; hasNextPendingStep: boolean; canManage: boolean; allUsers: SlimProfile[]; pipelineId: string; onToast: (msg: string) => void }) {
+function StepRow({ step, isLast, isMine, nextPendingStep, canManage, allUsers, pipelineId, onToast }: { step: PipelineStep; isLast: boolean; isMine: boolean; nextPendingStep: PipelineStep | null; canManage: boolean; allUsers: SlimProfile[]; pipelineId: string; onToast: (msg: string) => void }) {
   const [showAction, setShowAction] = useState(false)
   const [showReassign, setShowReassign] = useState(false)
   const [remarks, setRemarks] = useState("")
   const [reassignId, setReassignId] = useState("")
+  const [nextUserId, setNextUserId] = useState("")
   const [err, setErr] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const deadline = step.status === "ACTIVE" ? getDeadlineMeta(step.assigned_at) : null
@@ -92,16 +93,18 @@ function StepRow({ step, isLast, isMine, hasNextPendingStep, canManage, allUsers
   const handlePassToNext = () => {
     setErr(null)
     startTransition(async () => {
-      const fn = hasNextPendingStep ? passToNext : markDone
-      const res = await fn({ pipeline_id: pipelineId, step_id: step.id, remarks: remarks || undefined })
+      const res = nextPendingStep
+        ? await passToNext({ pipeline_id: pipelineId, step_id: step.id, remarks: remarks || undefined, next_user_id: nextPendingStep.assigned_user_id ? undefined : nextUserId || undefined })
+        : await markDone({ pipeline_id: pipelineId, step_id: step.id, remarks: remarks || undefined })
       if (!res.ok) {
         setErr(res.error)
         return
       }
       setShowAction(false)
       setRemarks("")
-      const nextUserName = hasNextPendingStep && res.data && "next_user_name" in res.data ? res.data.next_user_name : null
-      onToast(hasNextPendingStep ? (nextUserName ? `Moved to ${nextUserName}.` : "Moved to the next person.") : "Final step completed.")
+      setNextUserId("")
+      const nextUserName = nextPendingStep && res.data && "next_user_name" in res.data ? res.data.next_user_name : null
+      onToast(nextPendingStep ? (nextUserName ? `Moved to ${nextUserName}.` : "Moved to the next person.") : "Final step completed.")
     })
   }
 
@@ -122,6 +125,7 @@ function StepRow({ step, isLast, isMine, hasNextPendingStep, canManage, allUsers
 
   const nodeCls = step.status === "DONE" ? "bg-green-50 border-green-300 text-green-700" : step.status === "ACTIVE" ? "bg-neutral-900 border-neutral-900 text-white" : "bg-neutral-100 border-neutral-200 text-neutral-400"
   const lineCls = step.status === "DONE" ? "bg-green-200" : "bg-neutral-200"
+  const actionLabel = nextPendingStep ? "Move to next person" : "Mark as done"
 
   return (
     <div className="relative flex gap-0" id={`step-${step.id}`}>
@@ -153,18 +157,27 @@ function StepRow({ step, isLast, isMine, hasNextPendingStep, canManage, allUsers
 
           {step.status === "ACTIVE" && !showAction && !showReassign && (
             <div className="mt-3 flex flex-wrap gap-2">
-              <button onClick={() => setShowAction(true)} className={`rounded-2xl px-4 py-2 text-sm font-medium text-white transition ${hasNextPendingStep ? "bg-neutral-900 hover:bg-neutral-700" : "bg-green-700 hover:bg-green-800"}`}>{hasNextPendingStep ? "Move to next person" : "Mark as done"}</button>
+              <button onClick={() => setShowAction(true)} className={`rounded-2xl px-4 py-2 text-sm font-medium text-white transition ${nextPendingStep ? "bg-neutral-900 hover:bg-neutral-700" : "bg-green-700 hover:bg-green-800"}`}>{actionLabel}</button>
             </div>
           )}
 
           {showAction && (
             <div className="mt-3 max-w-lg rounded-3xl border border-neutral-200 bg-neutral-50 p-4">
               <p className="text-sm font-semibold text-neutral-900">Confirm this step</p>
-              <p className="mt-1 text-xs text-neutral-500">{hasNextPendingStep ? "This marks your step as done and moves the file to the next person in the chain." : "This finishes the workflow and marks the item completed."}</p>
+              <p className="mt-1 text-xs text-neutral-500">{nextPendingStep ? "This marks your step as done and moves the file to the next person in the chain." : "This finishes the workflow and marks the item completed."}</p>
+              {nextPendingStep && !nextPendingStep.assigned_user_id && (
+                <div className="mt-3">
+                  <label className="mb-2 block text-xs font-medium text-neutral-500">Choose who should receive the next step</label>
+                  <select value={nextUserId} onChange={e => setNextUserId(e.target.value)} className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-neutral-200">
+                    <option value="">Select a person…</option>
+                    {allUsers.map(user => <option key={user.id} value={user.id}>{user.full_name}{user.department ? ` — ${user.department}` : ""}</option>)}
+                  </select>
+                </div>
+              )}
               <textarea value={remarks} onChange={e => setRemarks(e.target.value)} rows={3} className="mt-3 w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-neutral-200" placeholder="Optional note…" />
               <div className="mt-3 flex flex-wrap gap-2">
-                <button onClick={handlePassToNext} disabled={isPending} className="rounded-2xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50">{isPending ? "Processing…" : "Confirm"}</button>
-                <button onClick={() => { setShowAction(false); setRemarks(""); setErr(null) }} className="rounded-2xl border border-neutral-200 px-4 py-2 text-sm text-neutral-600 transition hover:bg-white">Cancel</button>
+                <button onClick={handlePassToNext} disabled={isPending || (!!nextPendingStep && !nextPendingStep.assigned_user_id && !nextUserId)} className="rounded-2xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50">{isPending ? "Processing…" : "Confirm"}</button>
+                <button onClick={() => { setShowAction(false); setRemarks(""); setErr(null); setNextUserId("") }} className="rounded-2xl border border-neutral-200 px-4 py-2 text-sm text-neutral-600 transition hover:bg-white">Cancel</button>
               </div>
             </div>
           )}
@@ -280,7 +293,7 @@ export function PipelineDetailView({ pipeline, letter, currentUser, auditLog, al
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">Timeline</p>
                     <h2 className="mt-1 text-lg font-semibold text-neutral-900">Where the file has moved</h2>
-                    <p className="mt-1 text-sm text-neutral-500">Each step shows who held the file, when they received it, and whether it has been completed.</p>
+                    <p className="mt-1 text-sm text-neutral-500">If the next step has no assigned user yet, you can choose that person while moving the file forward.</p>
                   </div>
                 </div>
                 {steps.map((step, index) => (
@@ -289,7 +302,7 @@ export function PipelineDetailView({ pipeline, letter, currentUser, auditLog, al
                     step={step}
                     isLast={index === steps.length - 1}
                     isMine={step.assigned_user_id === currentUser.id}
-                    hasNextPendingStep={steps.some(candidate => candidate.step_order > step.step_order && candidate.status === "PENDING")}
+                    nextPendingStep={steps.find(candidate => candidate.step_order > step.step_order && candidate.status === "PENDING") ?? null}
                     canManage={canManage}
                     allUsers={allUsers}
                     pipelineId={pipeline.id}

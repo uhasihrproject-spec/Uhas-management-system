@@ -196,7 +196,7 @@ export async function createPipeline(
       step_order:          s.step_order,
       title:               s.title,
       action_note:         s.action_note ?? null,
-      assigned_user_id:    s.assigned_user_id,
+      assigned_user_id:    s.assigned_user_id ?? null,
       assigned_department: s.assigned_department ?? null,
       status:              i === 0 ? "ACTIVE" : "PENDING",
       assigned_at:         i === 0 ? now : null,
@@ -294,6 +294,13 @@ export async function passToNext(
       s => s.step_order > step.step_order && s.status === "PENDING"
     ) ?? null
 
+    let nextAssignedUserId = nextStep?.assigned_user_id ?? null
+    if (nextStep && !nextAssignedUserId) {
+      nextAssignedUserId = input.next_user_id ?? null
+      if (!nextAssignedUserId)
+        return { ok: false, error: "Select who should receive the next step first." }
+    }
+
     // Prevent "Pass to Next" on the final step — use markDone instead
     if (!nextStep)
       return { ok: false, error: "This is the final step. Use Mark as Done instead." }
@@ -307,7 +314,7 @@ export async function passToNext(
 
     await admin
       .from("letter_pipeline_steps")
-      .update({ status: "ACTIVE", assigned_at: now, updated_at: now })
+      .update({ status: "ACTIVE", assigned_at: now, assigned_user_id: nextAssignedUserId, updated_at: now })
       .eq("id", nextStep.id)
 
     await admin
@@ -317,11 +324,11 @@ export async function passToNext(
 
     // Fetch next user name to show in the popup
     let nextUserName: string | null = null
-    if (nextStep.assigned_user_id) {
+    if (nextAssignedUserId) {
       const { data: nextUser } = await admin
         .from("profiles")
         .select("full_name")
-        .eq("id", nextStep.assigned_user_id)
+        .eq("id", nextAssignedUserId)
         .single()
       nextUserName = nextUser?.full_name ?? null
     }
@@ -332,7 +339,7 @@ export async function passToNext(
       step_order:  step.step_order,
       step_title:  step.title,
       from_user_id: step.assigned_user_id,
-      to_user_id:  nextStep.assigned_user_id,
+      to_user_id:  nextAssignedUserId,
       remarks:     input.remarks ?? null,
     })
 
@@ -340,7 +347,7 @@ export async function passToNext(
       pipeline_id: input.pipeline_id,
       step_id:     nextStep.id,
       step_order:  nextStep.step_order,
-      to_user_id:  nextStep.assigned_user_id,
+      to_user_id:  nextAssignedUserId,
     })
 
     revalidatePath("/pipeline")
