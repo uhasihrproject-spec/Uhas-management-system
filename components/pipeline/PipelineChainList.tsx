@@ -1,541 +1,234 @@
 "use client"
-// components/pipeline/PipelineChainList.tsx
-//
-// Renders pipeline cards with horizontal step chains.
-// Handles both popup types:
-//   1. "You have a letter waiting" — shown on mount if user has active steps
-//   2. "A letter has been assigned to you" — shown after a Pass action
-// Handles Pass to Next and Mark as Done inline.
 
-import { useState, useTransition, useEffect, useRef, useCallback } from "react"
+import { useMemo, useState, useTransition } from "react"
 import Link from "next/link"
 import { passToNext, markDone } from "@/lib/pipeline/actions"
-
-// ── Types ──────────────────────────────────────────────────────────────────
+import type { SlimProfile } from "@/lib/pipeline/types"
 
 interface StepShape {
-  id:               string
-  pipeline_id:      string
-  step_order:       number
-  title:            string
-  status:           "PENDING" | "ACTIVE" | "DONE" | "SKIPPED"
+  id: string
+  pipeline_id: string
+  step_order: number
+  title: string
+  status: "PENDING" | "ACTIVE" | "DONE" | "SKIPPED"
   assigned_user_id: string | null
-  assigned_user:    { id: string; full_name: string; department: string | null } | null
+  assigned_at?: string | null
+  assigned_user: { id: string; full_name: string; department: string | null } | null
 }
 
 interface PipelineRow {
-  pipeline_id:        string
-  pipeline_status:    "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
-  current_step_order: number
-  started_at:         string
-  completed_at:       string | null
-  steps:              StepShape[]
+  pipeline_id: string
+  pipeline_status: "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
+  started_at: string
+  completed_at: string | null
+  steps: StepShape[]
   letter: {
-    id:                   string
-    ref_no:               string
-    subject:              string
-    sender_name:          string
-    date_received:        string
-    status:               string
-    confidentiality:      string
+    id: string
+    ref_no: string
+    subject: string
+    sender_name: string
+    date_received: string
     recipient_department: string | null
+    file_name?: string | null
   }
 }
 
 interface Props {
-  myRows:        PipelineRow[]  // letters where I am the active holder
-  otherRows:     PipelineRow[]  // all other visible pipelines
+  myRows: PipelineRow[]
+  otherRows: PipelineRow[]
   currentUserId: string
-  canManage:     boolean
+  allUsers: SlimProfile[]
 }
-
-// ── Helpers ────────────────────────────────────────────────────────────────
 
 function fmtDate(iso: string | null) {
-  if (!iso) return ""
-  return new Date(iso).toLocaleDateString("en-GB", {
-    day: "2-digit", month: "short", year: "numeric",
-  })
+  if (!iso) return "—"
+  return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
 }
 
-// ── Popup: "You have a letter waiting" ────────────────────────────────────
-
-function WaitingPopup({
-  count,
-  onDismiss,
-}: {
-  count:     number
-  onDismiss: () => void
-}) {
-  return (
-    <div
-      className="fixed bottom-6 right-6 z-50 w-72 rounded-2xl bg-white
-        ring-1 ring-neutral-200/80 shadow-lg p-4
-        animate-in slide-in-from-bottom-4 duration-300"
-    >
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-semibold text-neutral-900">
-          {count === 1 ? "You have a letter waiting" : `You have ${count} letters waiting`}
-        </p>
-        <button
-          onClick={onDismiss}
-          className="text-neutral-400 hover:text-neutral-700 text-lg leading-none mt-0.5 flex-shrink-0"
-          aria-label="Dismiss"
-        >
-          ×
-        </button>
-      </div>
-      <p className="mt-1.5 text-sm text-neutral-500 leading-relaxed">
-        {count === 1
-          ? "A letter in the pipeline is waiting for your action."
-          : "Letters in the pipeline are waiting for your action."}
-      </p>
-      <button
-        onClick={onDismiss}
-        className="mt-3 w-full rounded-xl bg-neutral-900 py-2 text-xs font-medium text-white
-          hover:bg-neutral-700 transition-colors"
-      >
-        View below
-      </button>
-    </div>
-  )
+function fmtDateTime(iso: string | null | undefined) {
+  if (!iso) return "—"
+  const d = new Date(iso)
+  return `${d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}, ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
 }
 
-// ── Popup: "A letter has been assigned to you" ────────────────────────────
-
-function AssignedPopup({
-  nextUserName,
-  letterRef,
-  onDismiss,
-}: {
-  nextUserName: string
-  letterRef:    string
-  onDismiss:    () => void
-}) {
-  // Auto-dismiss after 6 seconds
-  useEffect(() => {
-    const t = setTimeout(onDismiss, 6000)
-    return () => clearTimeout(t)
-  }, [onDismiss])
-
-  return (
-    <div
-      className="fixed bottom-6 right-6 z-50 w-72 rounded-2xl bg-white
-        ring-1 ring-neutral-200/80 shadow-lg p-4
-        animate-in slide-in-from-bottom-4 duration-300"
-    >
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-semibold text-neutral-900">Letter passed on</p>
-        <button
-          onClick={onDismiss}
-          className="text-neutral-400 hover:text-neutral-700 text-lg leading-none mt-0.5 flex-shrink-0"
-          aria-label="Dismiss"
-        >
-          ×
-        </button>
-      </div>
-      <p className="mt-1.5 text-sm text-neutral-500 leading-relaxed">
-        <span className="font-medium text-neutral-800">{letterRef}</span> has been passed to{" "}
-        <span className="font-medium text-neutral-800">{nextUserName}</span>.
-      </p>
-    </div>
-  )
+function getCountdown(assignedAt: string | null | undefined) {
+  if (!assignedAt) return null
+  const due = new Date(assignedAt).getTime() + 3 * 24 * 60 * 60 * 1000
+  const diff = due - Date.now()
+  const hours = Math.ceil(Math.abs(diff) / (1000 * 60 * 60))
+  const days = Math.floor(hours / 24)
+  const remHours = hours % 24
+  const label = days > 0 ? `${days}d ${remHours}h` : `${remHours}h`
+  return diff <= 0
+    ? { label: `Overdue ${label}`, tone: "bg-red-50 text-red-700" }
+    : { label: `${label} left`, tone: "bg-amber-50 text-amber-700" }
 }
 
-// ── Step node in the horizontal chain ─────────────────────────────────────
+function ActionPanel({ row, allUsers, canAct }: { row: PipelineRow; allUsers: SlimProfile[]; canAct: boolean }) {
+  const activeStep = row.steps.find(step => step.status === "ACTIVE")
+  const nextStep = activeStep ? row.steps.find(step => step.step_order > activeStep.step_order && step.status === "PENDING") ?? null : null
+  const [remarks, setRemarks] = useState("")
+  const [nextUserId, setNextUserId] = useState("")
+  const [actionMode, setActionMode] = useState<"move" | "done">("move")
+  const [open, setOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
 
-function ChainNode({
-  step,
-  isCurrentUser,
-  isLast,
-}: {
-  step:          StepShape
-  isCurrentUser: boolean
-  isLast:        boolean
-}) {
-  const isDone    = step.status === "DONE"
-  const isActive  = step.status === "ACTIVE"
-  const isPending = step.status === "PENDING"
+  if (!activeStep || !canAct) return null
 
-  return (
-    <div className="flex items-center gap-0 flex-shrink-0">
-      {/* Node */}
-      <div className="flex flex-col items-center">
-        {/* Avatar circle */}
-        <div
-          className={`
-            relative flex h-9 w-9 items-center justify-center rounded-full
-            text-xs font-bold border-2 transition-all
-            ${isDone    ? "bg-green-50  border-green-300  text-green-700"  : ""}
-            ${isActive  ? isCurrentUser
-                          ? "bg-neutral-900 border-neutral-900 text-white ring-4 ring-neutral-900/20"
-                          : "bg-yellow-50  border-yellow-400  text-yellow-800"
-                        : ""}
-            ${isPending ? "bg-neutral-100 border-neutral-200 text-neutral-400" : ""}
-          `}
-        >
-          {isDone ? (
-            <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none">
-              <path d="M3 8l3.5 3.5L13 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          ) : (
-            <span>{step.step_order}</span>
-          )}
-          {/* Pulse ring for active + mine */}
-          {isActive && isCurrentUser && (
-            <span className="absolute inset-0 rounded-full animate-ping bg-neutral-900/20" />
-          )}
-        </div>
-
-        {/* Name below */}
-        <div className="mt-1.5 text-center w-20">
-          <p className={`text-[11px] leading-tight truncate font-medium
-            ${isActive && isCurrentUser ? "text-neutral-900" : ""}
-            ${isActive && !isCurrentUser ? "text-yellow-800" : ""}
-            ${isDone    ? "text-green-700"   : ""}
-            ${isPending ? "text-neutral-400" : ""}
-          `}>
-            {step.assigned_user?.full_name?.split(" ")[0] ?? "—"}
-          </p>
-          <p className="text-[10px] text-neutral-400 truncate leading-tight mt-0.5">
-            {step.title}
-          </p>
-        </div>
-      </div>
-
-      {/* Arrow connector */}
-      {!isLast && (
-        <div className="flex items-center mx-1 pb-6 flex-shrink-0">
-          <div className={`h-0.5 w-5 ${isDone ? "bg-green-200" : "bg-neutral-200"}`} />
-          <svg className={`h-3 w-3 flex-shrink-0 ${isDone ? "text-green-300" : "text-neutral-300"}`}
-            viewBox="0 0 12 12" fill="currentColor">
-            <path d="M4 2l4 4-4 4" stroke="currentColor" strokeWidth="1.5" fill="none"
-              strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </div>
-      )}
-
-      {/* Final "Done" cap */}
-      {isLast && (
-        <div className="flex items-center mx-1 pb-6 flex-shrink-0">
-          <div className={`h-0.5 w-5 ${isDone ? "bg-green-200" : "bg-neutral-200"}`} />
-          <div className={`rounded-full px-2 py-0.5 text-[10px] font-semibold
-            ${isDone ? "bg-green-100 text-green-700" : "bg-neutral-100 text-neutral-400"}`}>
-            Done
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Action panel (pass / mark done) ───────────────────────────────────────
-
-function ActionPanel({
-  row,
-  currentUserId,
-  onPassed,
-  onDone,
-}: {
-  row:           PipelineRow
-  currentUserId: string
-  onPassed:      (nextUserName: string | null, refNo: string) => void
-  onDone:        () => void
-}) {
-  const activeStep = row.steps.find(s => s.status === "ACTIVE")
-  const isMine     = activeStep?.assigned_user_id === currentUserId
-  const isLastStep = activeStep
-    ? !row.steps.some(s => s.step_order > activeStep.step_order && s.status === "PENDING")
-    : false
-
-  const [showRemarks, setShowRemarks] = useState(false)
-  const [remarks, setRemarks]         = useState("")
-  const [error, setError]             = useState<string | null>(null)
-  const [isPending, startTransition]  = useTransition()
-
-  if (!activeStep || !isMine) return null
-
-  const handlePass = () => {
+  const handleConfirm = () => {
     setError(null)
     startTransition(async () => {
-      const res = await passToNext({
-        pipeline_id: row.pipeline_id,
-        step_id:     activeStep.id,
-        remarks:     remarks || undefined,
-      })
-      if (!res.ok) { setError(res.error); return }
-      setShowRemarks(false)
+      const res = actionMode === "done"
+        ? await markDone({ pipeline_id: row.pipeline_id, step_id: activeStep.id, remarks: remarks || undefined })
+        : await passToNext({ pipeline_id: row.pipeline_id, step_id: activeStep.id, remarks: remarks || undefined, next_user_id: nextStep?.assigned_user_id ? undefined : nextUserId || undefined })
+      if (!res.ok) {
+        setError(res.error)
+        return
+      }
+      setOpen(false)
       setRemarks("")
-      onPassed(res.data.next_user_name, row.letter.ref_no)
-    })
-  }
-
-  const handleMarkDone = () => {
-    setError(null)
-    startTransition(async () => {
-      const res = await markDone({
-        pipeline_id: row.pipeline_id,
-        step_id:     activeStep.id,
-        remarks:     remarks || undefined,
-      })
-      if (!res.ok) { setError(res.error); return }
-      setShowRemarks(false)
-      setRemarks("")
-      onDone()
+      setNextUserId("")
     })
   }
 
   return (
-    <div className="border-t border-neutral-100 mt-4 pt-4">
-      {!showRemarks ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-neutral-500 mr-1">Your action:</span>
-          {!isLastStep && (
-            <button
-              onClick={() => setShowRemarks(true)}
-              disabled={isPending}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-neutral-900
-                px-4 py-2 text-xs font-medium text-white hover:bg-neutral-700
-                disabled:opacity-50 transition-colors"
-            >
-              Pass to next
-              <svg className="h-3.5 w-3.5" viewBox="0 0 14 14" fill="none">
-                <path d="M3 7h8M8 4l3 3-3 3" stroke="currentColor" strokeWidth="1.5"
-                  strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-          )}
-          {isLastStep && (
-            <button
-              onClick={() => setShowRemarks(true)}
-              disabled={isPending}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-green-700
-                px-4 py-2 text-xs font-medium text-white hover:bg-green-800
-                disabled:opacity-50 transition-colors"
-            >
-              Mark as done
-              <svg className="h-3.5 w-3.5" viewBox="0 0 14 14" fill="none">
-                <path d="M2.5 7l3.5 3.5 5.5-6" stroke="currentColor" strokeWidth="1.5"
-                  strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-          )}
+    <div className="mt-4 border-t border-neutral-100 pt-4">
+      {!open ? (
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => { setActionMode("move"); setOpen(true) }} className="rounded-2xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700">Move to next person</button>
+          <button type="button" onClick={() => { setActionMode("done"); setOpen(true) }} className="rounded-2xl bg-green-700 px-4 py-2 text-sm font-medium text-white hover:bg-green-800">Mark as done</button>
         </div>
       ) : (
-        <div className="rounded-2xl bg-neutral-50 border border-neutral-200 p-4 max-w-sm">
-          <label className="text-[11px] uppercase tracking-wide text-neutral-400 mb-1.5 block">
-            Add a remark (optional)
-          </label>
-          <textarea
-            value={remarks}
-            onChange={e => setRemarks(e.target.value)}
-            rows={2}
-            placeholder="Notes for the record…"
-            disabled={isPending}
-            className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs
-              text-neutral-800 placeholder:text-neutral-300 focus:outline-none
-              focus:ring-1 focus:ring-neutral-300 resize-none"
-          />
-          <div className="mt-2.5 flex gap-2">
-            <button
-              onClick={isLastStep ? handleMarkDone : handlePass}
-              disabled={isPending}
-              className={`rounded-xl px-4 py-2 text-xs font-medium text-white
-                disabled:opacity-50 transition-colors
-                ${isLastStep ? "bg-green-700 hover:bg-green-800" : "bg-neutral-900 hover:bg-neutral-700"}`}
-            >
-              {isPending ? "Processing…" : isLastStep ? "Confirm complete" : "Confirm pass"}
-            </button>
-            <button
-              onClick={() => { setShowRemarks(false); setRemarks(""); setError(null) }}
-              disabled={isPending}
-              className="rounded-xl border border-neutral-200 px-3 py-2 text-xs
-                text-neutral-500 hover:bg-neutral-50 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-          {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Single pipeline card ───────────────────────────────────────────────────
-
-function PipelineCard({
-  row,
-  currentUserId,
-  canManage,
-  onPassed,
-  onDone,
-}: {
-  row:           PipelineRow
-  currentUserId: string
-  canManage:     boolean
-  onPassed:      (nextUserName: string | null, refNo: string) => void
-  onDone:        () => void
-}) {
-  const activeStep  = row.steps.find(s => s.status === "ACTIVE")
-  const isMine      = activeStep?.assigned_user_id === currentUserId
-  const isCompleted = row.pipeline_status === "COMPLETED"
-
-  return (
-    <div
-      className={`rounded-3xl bg-white ring-1 p-5 transition-all
-        ${isMine ? "ring-neutral-900/20 shadow-sm" : "ring-neutral-200/70"}`}
-    >
-      {/* Top: letter info + link */}
-      <div className="flex items-start justify-between gap-4 mb-4">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2 mb-0.5">
-            <span className="text-[11px] font-mono text-neutral-400">{row.letter.ref_no}</span>
-            {isMine && (
-              <span className="rounded-full bg-neutral-900 px-2 py-0.5 text-[10px] font-semibold text-white">
-                Waiting for you
-              </span>
-            )}
-            {isCompleted && (
-              <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700">
-                Completed
-              </span>
-            )}
-          </div>
-          <p className="text-sm font-semibold text-neutral-900 truncate">{row.letter.subject}</p>
-          <p className="text-xs text-neutral-400 mt-0.5">
-            {row.letter.sender_name}
-            {row.letter.recipient_department ? ` · ${row.letter.recipient_department}` : ""}
-            {" · "}
-            {fmtDate(row.letter.date_received)}
-          </p>
-        </div>
-        <Link
-          href={`/pipeline/${row.letter.id}`}
-          className="flex-shrink-0 text-xs text-neutral-400 hover:text-neutral-700 underline
-            underline-offset-2 transition-colors whitespace-nowrap"
-        >
-          View details
-        </Link>
-      </div>
-
-      {/* Horizontal step chain */}
-      <div className="overflow-x-auto -mx-1 px-1 pb-1">
-        <div className="flex items-start min-w-max">
-          {row.steps.map((step, i) => (
-            <ChainNode
-              key={step.id}
-              step={step}
-              isCurrentUser={step.assigned_user_id === currentUserId}
-              isLast={i === row.steps.length - 1}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Action panel (only if I'm the active holder) */}
-      <ActionPanel
-        row={row}
-        currentUserId={currentUserId}
-        onPassed={onPassed}
-        onDone={onDone}
-      />
-    </div>
-  )
-}
-
-// ── Main list component ────────────────────────────────────────────────────
-
-export function PipelineChainList({ myRows, otherRows, currentUserId, canManage }: Props) {
-  // Popup 1: "You have letters waiting" — show once on mount if I have active steps
-  const [showWaiting, setShowWaiting]   = useState(false)
-  const [showAssigned, setShowAssigned] = useState<{ nextUserName: string; letterRef: string } | null>(null)
-  const mountedRef = useRef(false)
-
-  useEffect(() => {
-    if (mountedRef.current) return
-    mountedRef.current = true
-    if (myRows.length > 0) {
-      const t = setTimeout(() => setShowWaiting(true), 1200)
-      return () => clearTimeout(t)
-    }
-  }, [myRows.length])
-
-  const handlePassed = useCallback((nextUserName: string | null, letterRef: string) => {
-    // Show "assigned to next user" popup
-    if (nextUserName) {
-      setShowAssigned({ nextUserName, letterRef })
-    }
-  }, [])
-
-  const handleDone = useCallback(() => {
-    // No special popup for done — the card updates naturally on revalidation
-  }, [])
-
-  const allRows = [...myRows, ...otherRows]
-
-  return (
-    <>
-      {/* Popup 1: waiting */}
-      {showWaiting && myRows.length > 0 && (
-        <WaitingPopup
-          count={myRows.length}
-          onDismiss={() => setShowWaiting(false)}
-        />
-      )}
-
-      {/* Popup 2: letter passed / assigned */}
-      {showAssigned && (
-        <AssignedPopup
-          nextUserName={showAssigned.nextUserName}
-          letterRef={showAssigned.letterRef}
-          onDismiss={() => setShowAssigned(null)}
-        />
-      )}
-
-      {/* My letters — shown first, with a section label */}
-      {myRows.length > 0 && (
-        <section>
-          <h2 className="text-xs uppercase tracking-[0.2em] text-neutral-500 mb-3">
-            Waiting for you · {myRows.length}
-          </h2>
-          <div className="space-y-3">
-            {myRows.map(row => (
-              <PipelineCard
-                key={row.pipeline_id}
-                row={row}
-                currentUserId={currentUserId}
-                canManage={canManage}
-                onPassed={handlePassed}
-                onDone={handleDone}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Other letters */}
-      {otherRows.length > 0 && (
-        <section>
-          {myRows.length > 0 && (
-            <h2 className="text-xs uppercase tracking-[0.2em] text-neutral-500 mb-3">
-              All pipelines · {otherRows.length}
-            </h2>
+        <div className="max-w-xl rounded-3xl bg-neutral-50 p-4 ring-1 ring-neutral-200/70">
+          <p className="text-sm font-semibold text-neutral-900">{actionMode === "move" ? "Move to next person" : "Mark as done"}</p>
+          <p className="mt-1 text-sm text-neutral-500">{actionMode === "move" ? `This marks ${activeStep.assigned_user?.full_name ?? "this person"} as done and moves the file forward.` : "This finishes the process."}</p>
+          {actionMode === "move" && (!nextStep || !nextStep.assigned_user_id) && (
+            <div className="mt-3">
+              <label className="mb-2 block text-xs font-medium text-neutral-500">Choose who should receive it next</label>
+              <select value={nextUserId} onChange={e => setNextUserId(e.target.value)} className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-neutral-200">
+                <option value="">Select a person…</option>
+                {allUsers.map(user => <option key={user.id} value={user.id}>{user.full_name}{user.department ? ` — ${user.department}` : ""}</option>)}
+              </select>
+            </div>
           )}
-          <div className="space-y-3">
-            {otherRows.map(row => (
-              <PipelineCard
-                key={row.pipeline_id}
-                row={row}
-                currentUserId={currentUserId}
-                canManage={canManage}
-                onPassed={handlePassed}
-                onDone={handleDone}
-              />
-            ))}
+          <textarea value={remarks} onChange={e => setRemarks(e.target.value)} rows={3} className="mt-3 w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-200" placeholder="Optional note…" />
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" onClick={handleConfirm} disabled={isPending || (actionMode === "move" && !nextStep?.assigned_user_id && !nextUserId)} className="rounded-2xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60">{isPending ? "Saving…" : "Confirm"}</button>
+            <button type="button" onClick={() => { setOpen(false); setRemarks(""); setError(null); setNextUserId("") }} className="rounded-2xl border border-neutral-200 px-4 py-2 text-sm text-neutral-600">Cancel</button>
           </div>
-        </section>
+          {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+        </div>
       )}
-    </>
+    </div>
+  )
+}
+
+function PipelineCard({ row, currentUserId, allUsers }: { row: PipelineRow; currentUserId: string; allUsers: SlimProfile[] }) {
+  const active = row.steps.find(step => step.status === "ACTIVE")
+  const next = active ? row.steps.find(step => step.step_order > active.step_order && step.status === "PENDING") : null
+  const doneCount = row.steps.filter(step => step.status === "DONE").length
+  const countdown = getCountdown(active?.assigned_at)
+  const isMine = active?.assigned_user_id === currentUserId
+
+  return (
+    <article className="rounded-3xl bg-white p-5 ring-1 ring-neutral-200/70 transition hover:ring-neutral-300">
+      <Link href={`/pipeline/${row.letter.id}`} className="block rounded-2xl focus:outline-none focus:ring-2 focus:ring-neutral-300" aria-label={`Open tracking details for ${row.letter.ref_no}`}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-500">
+              <span className="font-mono">{row.letter.ref_no}</span>
+              {row.letter.file_name && <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold text-neutral-600">{row.letter.file_name}</span>}
+              {isMine && <span className="rounded-full bg-neutral-900 px-2 py-0.5 text-[10px] font-semibold text-white">Your turn</span>}
+            </div>
+            <h3 className="mt-2 text-lg font-semibold text-neutral-900">{row.letter.subject}</h3>
+            <p className="mt-1 text-sm text-neutral-500">From {row.letter.sender_name} · Received {fmtDate(row.letter.date_received)}</p>
+          </div>
+          <span className="text-sm font-medium text-neutral-500">Open</span>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl bg-neutral-50 px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">Now with</p>
+            <p className="mt-1 text-sm font-semibold text-neutral-900">{active?.assigned_user?.full_name ?? "Completed"}</p>
+            <p className="mt-1 text-xs text-neutral-500">{active?.assigned_at ? `Since ${fmtDateTime(active.assigned_at)}` : row.completed_at ? `Completed ${fmtDateTime(row.completed_at)}` : "—"}</p>
+          </div>
+          <div className="rounded-2xl bg-neutral-50 px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">Next</p>
+            <p className="mt-1 text-sm font-semibold text-neutral-900">{next?.assigned_user?.full_name ?? (next ? "Choose when moving" : "Final step")}</p>
+            <p className="mt-1 text-xs text-neutral-500">{next?.title ?? "No next step"}</p>
+          </div>
+          <div className="rounded-2xl bg-neutral-50 px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">Progress</p>
+            <p className="mt-1 text-sm font-semibold text-neutral-900">{doneCount} / {row.steps.length} done</p>
+            {countdown && <p className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${countdown.tone}`}>{countdown.label}</p>}
+          </div>
+        </div>
+      </Link>
+
+      {isMine ? <ActionPanel row={row} allUsers={allUsers} canAct /> : null}
+    </article>
+  )
+}
+
+export function PipelineChainList({ myRows, otherRows, currentUserId, allUsers }: Props) {
+  const [query, setQuery] = useState("")
+  const [view, setView] = useState<"mine" | "all">(myRows.length > 0 ? "mine" : "all")
+
+  const allRows = useMemo(() => [...myRows, ...otherRows], [myRows, otherRows])
+  const filteredRows = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return allRows
+    return allRows.filter(row => [row.letter.ref_no, row.letter.subject, row.letter.sender_name, row.letter.file_name ?? "", row.steps.find(step => step.status === "ACTIVE")?.assigned_user?.full_name ?? ""].some(value => value.toLowerCase().includes(q)))
+  }, [allRows, query])
+  const myIds = new Set(myRows.map(row => row.pipeline_id))
+  const mine = filteredRows.filter(row => myIds.has(row.pipeline_id))
+  const visibleRows = view === "mine" ? mine : filteredRows
+
+  return (
+    <div className="space-y-5">
+      <section className="rounded-3xl bg-white p-5 ring-1 ring-neutral-200/70">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search by reference, file name, subject, or current holder…" className="w-full rounded-2xl border border-neutral-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-200" />
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => setView("mine")} className={`rounded-2xl px-4 py-2 text-sm font-medium transition ${view === "mine" ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"}`}>Waiting for you ({mine.length})</button>
+            <button type="button" onClick={() => setView("all")} className={`rounded-2xl px-4 py-2 text-sm font-medium transition ${view === "all" ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"}`}>All items ({filteredRows.length})</button>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-3xl bg-white p-5 ring-1 ring-neutral-200/70">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl bg-neutral-50 px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">Waiting for you</p>
+            <p className="mt-1 text-2xl font-semibold text-neutral-900">{mine.length}</p>
+          </div>
+          <div className="rounded-2xl bg-neutral-50 px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">All tracked</p>
+            <p className="mt-1 text-2xl font-semibold text-neutral-900">{allRows.length}</p>
+          </div>
+          <div className="rounded-2xl bg-neutral-50 px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">Completed</p>
+            <p className="mt-1 text-2xl font-semibold text-neutral-900">{allRows.filter(row => row.pipeline_status === "COMPLETED").length}</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-neutral-900">{view === "mine" ? "Items waiting for you" : "All tracked items"}</h2>
+          <p className="text-xs text-neutral-400">Tap any item to see full details.</p>
+        </div>
+        {visibleRows.length === 0 ? (
+          <div className="rounded-3xl bg-white p-10 text-center ring-1 ring-neutral-200/70">
+            <p className="text-sm text-neutral-500">No tracked items found.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {visibleRows.map(row => <PipelineCard key={row.pipeline_id} row={row} currentUserId={currentUserId} allUsers={allUsers} />)}
+          </div>
+        )}
+      </section>
+    </div>
   )
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getLetterAccess } from "@/lib/letters/access";
@@ -64,6 +65,8 @@ export default async function EditLetterPage({
       </div>
     );
   }
+
+  if (Array.isArray(letter.tags) && letter.tags.includes("manual-file")) notFound()
 
   const initial = {
     ...letter,

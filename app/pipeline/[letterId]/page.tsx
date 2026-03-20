@@ -32,7 +32,7 @@ export default async function PipelineDetailPage({
 
   const { data: letter } = await admin
     .from("letters")
-    .select("id, ref_no, subject, sender_name, date_received, status, confidentiality, recipient_department, created_by")
+    .select("id, ref_no, subject, sender_name, date_received, status, confidentiality, recipient_department, file_name, created_by")
     .eq("id", letterId)
     .single()
 
@@ -84,6 +84,7 @@ export default async function PipelineDetailPage({
         status:               letter.status,
         confidentiality:      letter.confidentiality,
         recipient_department: letter.recipient_department,
+        file_name:            letter.file_name,
       }}
       currentUser={{
         id:         profile.id,

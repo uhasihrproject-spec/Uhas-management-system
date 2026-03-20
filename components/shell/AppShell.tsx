@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import MobileNav from "./MobileNav";
+import GlobalTrackReminder from "./GlobalTrackReminder";
 import type { ReactNode } from "react";
 
 // ─── Route helper ─────────────────────────────────────────────────────────────
@@ -72,7 +73,7 @@ function NavIcon({ name, active }: { name: string; active?: boolean }) {
       </svg>
     ),
   };
-  return <>{icons[name] ?? null}</>;
+  return <>{icons[name] ?? (name === "Track Progress" ? icons.Pipeline : null)}</>;
 }
 
 // ─── Nav item — icon fades out, text fades in, same row ──────────────────────
@@ -181,7 +182,7 @@ export default function AppShell({
     { href: "/dashboard",   label: "Dashboard",     show: true },
     { href: "/letters",     label: "Letters",        show: true },
     { href: "/letters/new", label: "New Letter",     show: canManageLetters },
-    { href: "/pipeline",    label: "Pipeline",       show: true },
+    { href: "/pipeline",    label: "Track Progress",       show: true },
     { href: "/admin",       label: "Manage Records", show: isAdmin },
   ].filter((i) => i.show);
 
@@ -198,6 +199,7 @@ export default function AppShell({
   return (
     <div className="min-h-screen">
       <MobileNav userEmail={userEmail} role={role} userName={userName} />
+      <GlobalTrackReminder />
 
       <div className="lg:flex lg:h-screen">
 

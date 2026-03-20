@@ -48,6 +48,7 @@ async function fetchAllRows(admin: ReturnType<typeof supabaseAdmin>, table: stri
 
   for (let from = 0; ; from += pageSize) {
     let q = admin.from(table).select(columns).range(from, from + pageSize - 1);
+    if (table === "letters") q = q.not("tags", "cs", '{"manual-file"}');
     if (matcher) q = q.eq(matcher[0], matcher[1]);
 
     const { data, error } = await q;
@@ -100,10 +101,10 @@ export default async function DashboardPage() {
 
   if (role === "ADMIN" || role === "SECRETARY") {
     const [{ count: t }, { count: i }, { count: o }, { count: a }] = await Promise.all([
-      admin.from("letters").select("id", { count: "exact", head: true }),
-      admin.from("letters").select("id", { count: "exact", head: true }).eq("direction", "INCOMING"),
-      admin.from("letters").select("id", { count: "exact", head: true }).eq("direction", "OUTGOING"),
-      admin.from("letters").select("id", { count: "exact", head: true }).eq("status", "ARCHIVED"),
+      admin.from("letters").select("id", { count: "exact", head: true }).not("tags", "cs", '{"manual-file"}'),
+      admin.from("letters").select("id", { count: "exact", head: true }).not("tags", "cs", '{"manual-file"}').eq("direction", "INCOMING"),
+      admin.from("letters").select("id", { count: "exact", head: true }).not("tags", "cs", '{"manual-file"}').eq("direction", "OUTGOING"),
+      admin.from("letters").select("id", { count: "exact", head: true }).not("tags", "cs", '{"manual-file"}').eq("status", "ARCHIVED"),
     ]);
 
     total = t ?? 0;

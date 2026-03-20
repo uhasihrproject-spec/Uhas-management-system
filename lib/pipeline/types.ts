@@ -66,25 +66,32 @@ export interface LetterSummary {
   status:               string
   confidentiality:      Confidentiality
   recipient_department: string | null
+  file_name?:           string | null
 }
 
 // ── Server action inputs ───────────────────────────────────────────────────
 
 export interface CreatePipelineInput {
-  letter_id: string
+  letter_id?: string
+  manual_item?: {
+    ref_no?: string
+    file_name: string
+    subject?: string
+  }
   steps: {
     step_order:          number
     title:               string
     action_note?:        string
-    assigned_user_id:    string
+    assigned_user_id?:   string | null
     assigned_department?: string
   }[]
 }
 
 export interface CompleteStepInput {
-  pipeline_id: string
-  step_id:     string
-  remarks?:    string
+  pipeline_id:  string
+  step_id:      string
+  remarks?:     string
+  next_user_id?: string
 }
 
 export interface ReassignStepInput {

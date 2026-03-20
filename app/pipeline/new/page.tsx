@@ -37,7 +37,7 @@ export default async function NewPipelinePage({
 
   let lettersQuery = admin
     .from("letters")
-    .select("id, ref_no, subject, sender_name, date_received, status, recipient_department")
+    .select("id, ref_no, subject, sender_name, date_received, status, recipient_department, file_name")
     .not("status", "eq", "ARCHIVED")
     .order("created_at", { ascending: false })
     .limit(300)

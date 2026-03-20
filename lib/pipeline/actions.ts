@@ -42,6 +42,28 @@ function isPrivileged(role: UserRole) {
   return role === "ADMIN" || role === "SECRETARY"
 }
 
+async function generateManualRef() {
+  const admin = supabaseAdmin()
+  const year = new Date().getFullYear()
+  const prefix = `UHAS/TRK/FILE/${year}/`
+
+  const { data } = await admin
+    .from("letters")
+    .select("ref_no")
+    .like("ref_no", `${prefix}%`)
+    .order("created_at", { ascending: false })
+    .limit(1)
+
+  let next = 1
+  const last = data?.[0]?.ref_no as string | undefined
+  if (last && last.startsWith(prefix)) {
+    const num = Number(last.slice(prefix.length))
+    if (Number.isFinite(num) && num > 0) next = num + 1
+  }
+
+  return `${prefix}${String(next).padStart(4, "0")}`
+}
+
 // ── Letter access check ────────────────────────────────────────────────────
 
 async function assertLetterAccess(letterId: string, actorId: string, actorRole: UserRole) {
@@ -99,14 +121,54 @@ export async function createPipeline(
     if (!input.steps.length)
       return { ok: false, error: "At least one step is required." }
 
-    await assertLetterAccess(input.letter_id, actor.id, actor.role)
-
     const admin = supabaseAdmin()
+
+    let letterId = input.letter_id ?? null
+
+    if (!letterId && input.manual_item) {
+      const fileName = input.manual_item.file_name.trim()
+      if (!fileName) return { ok: false, error: "File name is required." }
+
+      const manualRef = input.manual_item.ref_no?.trim() || await generateManualRef()
+      const now = new Date().toISOString()
+      const safeRef = manualRef.replace(/[^a-zA-Z0-9-_]+/g, "-")
+      const { data: createdLetter, error: createLetterError } = await admin
+        .from("letters")
+        .insert({
+          ref_no: manualRef,
+          direction: "INCOMING",
+          date_received: now.slice(0, 10),
+          sender_name: "Physical file",
+          recipient_department: actor.department ?? null,
+          subject: input.manual_item.subject?.trim() || fileName,
+          summary: "Manual physical file tracked through Track Progress.",
+          confidentiality: "PUBLIC",
+          status: "ASSIGNED",
+          tags: ["track-progress", "manual-file"],
+          file_bucket: "letters",
+          file_path: `manual/${safeRef}.txt`,
+          file_name: fileName,
+          mime_type: "text/plain",
+          created_by: actor.id,
+        })
+        .select("id")
+        .single()
+
+      if (createLetterError || !createdLetter)
+        return { ok: false, error: createLetterError?.message || "Failed to create the file record." }
+
+      letterId = createdLetter.id
+    }
+
+    if (!letterId)
+      return { ok: false, error: "Select a letter or enter a file name first." }
+
+    await assertLetterAccess(letterId, actor.id, actor.role)
 
     const { data: existing } = await admin
       .from("letter_pipelines")
       .select("id")
-      .eq("letter_id", input.letter_id)
+      .eq("letter_id", letterId)
       .neq("status", "CANCELLED")
       .maybeSingle()
 
@@ -116,7 +178,7 @@ export async function createPipeline(
     const { data: pipeline, error: pErr } = await admin
       .from("letter_pipelines")
       .insert({
-        letter_id:          input.letter_id,
+        letter_id:          letterId,
         status:             "IN_PROGRESS",
         current_step_order: 1,
         created_by:         actor.id,
@@ -134,7 +196,7 @@ export async function createPipeline(
       step_order:          s.step_order,
       title:               s.title,
       action_note:         s.action_note ?? null,
-      assigned_user_id:    s.assigned_user_id,
+      assigned_user_id:    s.assigned_user_id ?? null,
       assigned_department: s.assigned_department ?? null,
       status:              i === 0 ? "ACTIVE" : "PENDING",
       assigned_at:         i === 0 ? now : null,
@@ -149,9 +211,9 @@ export async function createPipeline(
     await admin
       .from("letters")
       .update({ status: "ASSIGNED", updated_at: now })
-      .eq("id", input.letter_id)
+      .eq("id", letterId)
 
-    await audit(input.letter_id, actor.id, "PIPELINE_CREATED", {
+    await audit(letterId, actor.id, "PIPELINE_CREATED", {
       pipeline_id: pipeline.id,
       step_count:  input.steps.length,
     })
@@ -219,11 +281,9 @@ export async function passToNext(
     if (pipeline.status !== "IN_PROGRESS")
       return { ok: false, error: "Pipeline is not in progress." }
 
-    // KEY RULE: only the assigned user (or admin/secretary) can act
-    if (step.assigned_user_id !== actor.id && !isPrivileged(actor.role))
-      return { ok: false, error: "You are not assigned to this step." }
-
     await assertLetterAccess(pipeline.letter_id, actor.id, actor.role)
+    if (!isPrivileged(actor.role) && step.assigned_user_id !== actor.id)
+      return { ok: false, error: "Only the current holder can move or complete this step." }
 
     const { data: allSteps } = await admin
       .from("letter_pipeline_steps")
@@ -235,9 +295,19 @@ export async function passToNext(
       s => s.step_order > step.step_order && s.status === "PENDING"
     ) ?? null
 
-    // Prevent "Pass to Next" on the final step — use markDone instead
-    if (!nextStep)
-      return { ok: false, error: "This is the final step. Use Mark as Done instead." }
+    let nextAssignedUserId = nextStep?.assigned_user_id ?? null
+    const requestedNextUserId = input.next_user_id ?? null
+    let nextStepId = nextStep?.id ?? null
+    let nextStepOrder = nextStep?.step_order ?? null
+
+    if (nextStep && !nextAssignedUserId) {
+      nextAssignedUserId = requestedNextUserId
+      if (!nextAssignedUserId)
+        return { ok: false, error: "Select who should receive the next step first." }
+    }
+
+    if (!nextStep && !requestedNextUserId)
+      return { ok: false, error: "Select who should receive this next, or mark the workflow as done." }
 
     const now = new Date().toISOString()
 
@@ -246,23 +316,52 @@ export async function passToNext(
       .update({ status: "DONE", completed_at: now, completed_by: actor.id, remarks: input.remarks ?? null, updated_at: now })
       .eq("id", input.step_id)
 
-    await admin
-      .from("letter_pipeline_steps")
-      .update({ status: "ACTIVE", assigned_at: now, updated_at: now })
-      .eq("id", nextStep.id)
+    if (nextStep) {
+      await admin
+        .from("letter_pipeline_steps")
+        .update({ status: "ACTIVE", assigned_at: now, assigned_user_id: nextAssignedUserId, updated_at: now })
+        .eq("id", nextStep.id)
+    } else {
+      const { data: nextUserProfile } = await admin
+        .from("profiles")
+        .select("department")
+        .eq("id", requestedNextUserId)
+        .single()
+
+      const { data: createdNextStep, error: createNextStepError } = await admin
+        .from("letter_pipeline_steps")
+        .insert({
+          pipeline_id: input.pipeline_id,
+          step_order: step.step_order + 1,
+          title: "Continued handling",
+          action_note: "Added during handoff.",
+          assigned_user_id: requestedNextUserId,
+          assigned_department: nextUserProfile?.department ?? null,
+          status: "ACTIVE",
+          assigned_at: now,
+        })
+        .select("id, step_order")
+        .single()
+
+      if (createNextStepError || !createdNextStep)
+        return { ok: false, error: createNextStepError?.message || "Failed to create the next step." }
+
+      nextAssignedUserId = requestedNextUserId
+      nextStepId = createdNextStep.id
+      nextStepOrder = createdNextStep.step_order
+    }
 
     await admin
       .from("letter_pipelines")
-      .update({ current_step_order: nextStep.step_order, updated_at: now })
+      .update({ current_step_order: nextStepOrder, updated_at: now })
       .eq("id", input.pipeline_id)
 
-    // Fetch next user name to show in the popup
     let nextUserName: string | null = null
-    if (nextStep.assigned_user_id) {
+    if (nextAssignedUserId) {
       const { data: nextUser } = await admin
         .from("profiles")
         .select("full_name")
-        .eq("id", nextStep.assigned_user_id)
+        .eq("id", nextAssignedUserId)
         .single()
       nextUserName = nextUser?.full_name ?? null
     }
@@ -273,15 +372,15 @@ export async function passToNext(
       step_order:  step.step_order,
       step_title:  step.title,
       from_user_id: step.assigned_user_id,
-      to_user_id:  nextStep.assigned_user_id,
+      to_user_id:  nextAssignedUserId,
       remarks:     input.remarks ?? null,
     })
 
     await audit(pipeline.letter_id, actor.id, "PIPELINE_STEP_ACTIVATED", {
       pipeline_id: input.pipeline_id,
-      step_id:     nextStep.id,
-      step_order:  nextStep.step_order,
-      to_user_id:  nextStep.assigned_user_id,
+      step_id:     nextStepId,
+      step_order:  nextStepOrder,
+      to_user_id:  nextAssignedUserId,
     })
 
     revalidatePath("/pipeline")
@@ -314,10 +413,9 @@ export async function markDone(
     if (pipeline.status !== "IN_PROGRESS")
       return { ok: false, error: "Pipeline is not in progress." }
 
-    if (step.assigned_user_id !== actor.id && !isPrivileged(actor.role))
-      return { ok: false, error: "You are not assigned to this step." }
-
     await assertLetterAccess(pipeline.letter_id, actor.id, actor.role)
+    if (!isPrivileged(actor.role) && step.assigned_user_id !== actor.id)
+      return { ok: false, error: "Only the current holder can move or complete this step." }
 
     // Confirm it actually is the last step
     const { data: allSteps } = await admin
@@ -468,8 +566,7 @@ export async function getPipelineAuditLog(letterId: string) {
 // ── 8. List for pipeline page — includes full step chain ──────────────────
 // KEY RULE ENFORCED:
 //   ADMIN/SECRETARY: see all pipelines
-//   STAFF: only see pipelines where they are explicitly assigned to a step
-//          AND the letter passes letter-level access checks
+//   STAFF: see all non-cancelled pipelines they are allowed to access
 
 export async function getLettersWithPipelines() {
   const actor = await getActor()
@@ -485,7 +582,7 @@ export async function getLettersWithPipelines() {
         id, status, current_step_order, started_at, completed_at,
         letter:letters!letter_id(
           id, ref_no, subject, sender_name, date_received,
-          status, confidentiality, recipient_department
+          status, confidentiality, recipient_department, file_name
         )
       `)
       .neq("status", "CANCELLED")
@@ -501,45 +598,46 @@ export async function getLettersWithPipelines() {
       letter:              row.letter,
     }))
   } else {
-    // STAFF: only pipelines where this user is an assigned step handler
-    const { data: stepRows } = await admin
-      .from("letter_pipeline_steps")
+    // STAFF: all non-cancelled pipelines they are allowed to access
+    const { data } = await admin
+      .from("letter_pipelines")
       .select(`
-        pipeline:letter_pipelines!pipeline_id(
-          id, status, current_step_order, started_at, completed_at,
-          letter:letters!letter_id(
-            id, ref_no, subject, sender_name, date_received,
-            status, confidentiality, recipient_department
-          )
+        id, status, current_step_order, started_at, completed_at,
+        letter:letters!letter_id(
+          id, ref_no, subject, sender_name, date_received,
+          status, confidentiality, recipient_department, file_name, created_by
         )
       `)
-      .eq("assigned_user_id", actor.id)
-      .neq("pipeline_id", null)
+      .neq("status", "CANCELLED")
+      .order("started_at", { ascending: false })
+      .limit(200)
 
-    const seen = new Set<string>()
-    for (const row of stepRows ?? []) {
-      const pipe = row.pipeline as any
-      if (!pipe || seen.has(pipe.id)) continue
-      // Additional letter-level access check (KEY RULE)
-      const letter = pipe.letter
+    for (const row of data ?? []) {
+      const letter = row.letter as any
       if (!letter) continue
+
+      let allowed = false
+      if (letter.created_by === actor.id) allowed = true
+      if (letter.confidentiality === "PUBLIC") allowed = true
+      if (letter.confidentiality === "INTERNAL" && actor.department === letter.recipient_department) allowed = true
       if (letter.confidentiality === "CONFIDENTIAL") {
-        // must be in letter_recipients too
         const { data: rec } = await admin
           .from("letter_recipients")
           .select("letter_id")
           .eq("letter_id", letter.id)
           .eq("user_id", actor.id)
           .maybeSingle()
-        if (!rec && letter.created_by !== actor.id) continue
+        if (rec) allowed = true
       }
-      seen.add(pipe.id)
+
+      if (!allowed) continue
+
       pipelineRows.push({
-        pipeline_id:        pipe.id,
-        pipeline_status:    pipe.status,
-        current_step_order: pipe.current_step_order,
-        started_at:         pipe.started_at,
-        completed_at:       pipe.completed_at,
+        pipeline_id:        row.id,
+        pipeline_status:    row.status,
+        current_step_order: row.current_step_order,
+        started_at:         row.started_at,
+        completed_at:       row.completed_at,
         letter,
       })
     }
@@ -553,7 +651,7 @@ export async function getLettersWithPipelines() {
     .from("letter_pipeline_steps")
     .select(`
       id, pipeline_id, step_order, title, status,
-      assigned_user_id,
+      assigned_user_id, assigned_at, completed_at,
       assigned_user:profiles!assigned_user_id(id, full_name, department)
     `)
     .in("pipeline_id", pipelineIds)
