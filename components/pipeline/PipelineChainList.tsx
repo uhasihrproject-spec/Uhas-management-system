@@ -38,7 +38,6 @@ interface Props {
   otherRows: PipelineRow[]
   currentUserId: string
   allUsers: SlimProfile[]
-  canManage: boolean
 }
 
 function fmtDate(iso: string | null) {
@@ -125,7 +124,7 @@ function ActionPanel({ row, allUsers, canAct }: { row: PipelineRow; allUsers: Sl
   )
 }
 
-function PipelineCard({ row, currentUserId, allUsers, canManage }: { row: PipelineRow; currentUserId: string; allUsers: SlimProfile[]; canManage: boolean }) {
+function PipelineCard({ row, currentUserId, allUsers }: { row: PipelineRow; currentUserId: string; allUsers: SlimProfile[] }) {
   const active = row.steps.find(step => step.status === "ACTIVE")
   const next = active ? row.steps.find(step => step.step_order > active.step_order && step.status === "PENDING") : null
   const doneCount = row.steps.filter(step => step.status === "DONE").length
@@ -167,12 +166,12 @@ function PipelineCard({ row, currentUserId, allUsers, canManage }: { row: Pipeli
         </div>
       </Link>
 
-      <ActionPanel row={row} allUsers={allUsers} canAct={isMine || canManage} />
+      {isMine ? <ActionPanel row={row} allUsers={allUsers} canAct /> : null}
     </article>
   )
 }
 
-export function PipelineChainList({ myRows, otherRows, currentUserId, allUsers, canManage }: Props) {
+export function PipelineChainList({ myRows, otherRows, currentUserId, allUsers }: Props) {
   const [query, setQuery] = useState("")
   const [view, setView] = useState<"mine" | "all">(myRows.length > 0 ? "mine" : "all")
 
@@ -226,7 +225,7 @@ export function PipelineChainList({ myRows, otherRows, currentUserId, allUsers, 
           </div>
         ) : (
           <div className="space-y-4">
-            {visibleRows.map(row => <PipelineCard key={row.pipeline_id} row={row} currentUserId={currentUserId} allUsers={allUsers} canManage={canManage} />)}
+            {visibleRows.map(row => <PipelineCard key={row.pipeline_id} row={row} currentUserId={currentUserId} allUsers={allUsers} />)}
           </div>
         )}
       </section>
