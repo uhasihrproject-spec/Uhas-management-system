@@ -132,45 +132,55 @@ function PipelineCard({ row, currentUserId, onPassed }: { row: PipelineRow; curr
   const isMine = active?.assigned_user_id === currentUserId
 
   return (
-    <article className="rounded-3xl bg-white p-5 ring-1 ring-neutral-200/70">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-500">
-            <span className="font-mono">{row.letter.ref_no}</span>
-            {row.letter.file_name && <span>{row.letter.file_name}</span>}
-            {isMine && <span className="rounded-full bg-neutral-900 px-2 py-0.5 text-[10px] font-semibold text-white">Your turn</span>}
+    <article className="rounded-3xl bg-white p-5 ring-1 ring-neutral-200/70 transition hover:ring-neutral-300">
+      <Link href={`/pipeline/${row.letter.id}`} className="block rounded-2xl focus:outline-none focus:ring-2 focus:ring-neutral-300" aria-label={`Open tracking details for ${row.letter.ref_no}`}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-500">
+              <span className="font-mono">{row.letter.ref_no}</span>
+              {row.letter.file_name && <span>{row.letter.file_name}</span>}
+              {isMine && <span className="rounded-full bg-neutral-900 px-2 py-0.5 text-[10px] font-semibold text-white">Your turn</span>}
+            </div>
+            <h3 className="mt-1 text-base font-semibold text-neutral-900">{row.letter.subject}</h3>
+            <p className="mt-1 text-sm text-neutral-500">{row.letter.sender_name} · Received {fmtDate(row.letter.date_received)}</p>
           </div>
-          <h3 className="mt-1 text-base font-semibold text-neutral-900">{row.letter.subject}</h3>
-          <p className="mt-1 text-sm text-neutral-500">{row.letter.sender_name} · Received {fmtDate(row.letter.date_received)}</p>
+          <span className="text-sm font-medium text-neutral-500 underline underline-offset-2">Open</span>
         </div>
-        <Link href={`/pipeline/${row.letter.id}`} className="text-sm text-neutral-500 underline underline-offset-2 hover:text-neutral-800">Open</Link>
-      </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-3">
-        <div className="rounded-2xl bg-neutral-50 px-4 py-3">
-          <p className="text-xs text-neutral-500">Current holder</p>
-          <p className="mt-1 text-sm font-medium text-neutral-900">{active?.assigned_user?.full_name ?? "Completed"}</p>
-          <p className="mt-1 text-xs text-neutral-500">{active?.assigned_at ? `Received ${fmtDateTime(active.assigned_at)}` : row.completed_at ? `Completed ${fmtDateTime(row.completed_at)}` : "—"}</p>
-        </div>
-        <div className="rounded-2xl bg-neutral-50 px-4 py-3">
-          <p className="text-xs text-neutral-500">Next step</p>
-          <p className="mt-1 text-sm font-medium text-neutral-900">{next?.assigned_user?.full_name ?? "Final / done"}</p>
-          <p className="mt-1 text-xs text-neutral-500">{next?.title ?? "No pending next step"}</p>
-        </div>
-        <div className="rounded-2xl bg-neutral-50 px-4 py-3">
-          <p className="text-xs text-neutral-500">Progress</p>
-          <p className="mt-1 text-sm font-medium text-neutral-900">{doneCount}/{row.steps.length} steps</p>
-          {countdown && <p className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${countdown.tone}`}>{countdown.label}</p>}
-        </div>
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        {row.steps.map(step => (
-          <div key={step.id} className={`rounded-full px-3 py-1 text-xs ${step.status === "DONE" ? "bg-green-50 text-green-700" : step.status === "ACTIVE" ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-500"}`}>
-            {step.step_order}. {step.assigned_user?.full_name?.split(" ")[0] ?? "Pending"}
+        <div className="mt-4 rounded-2xl bg-neutral-50 px-4 py-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-400">Now with</p>
+              <p className="mt-1 text-lg font-semibold text-neutral-900">{active?.assigned_user?.full_name ?? "Completed"}</p>
+              <p className="mt-1 text-sm text-neutral-500">{active?.title ?? "All steps completed"}</p>
+            </div>
+            <div className="text-right text-sm text-neutral-500">
+              <p>{active?.assigned_at ? `Since ${fmtDateTime(active.assigned_at)}` : row.completed_at ? `Completed ${fmtDateTime(row.completed_at)}` : "—"}</p>
+              {countdown && <p className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${countdown.tone}`}>{countdown.label}</p>}
+            </div>
           </div>
-        ))}
-      </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-400">Next</p>
+              <p className="mt-1 text-sm font-medium text-neutral-900">{next?.assigned_user?.full_name ?? "Final / done"}</p>
+              <p className="mt-1 text-xs text-neutral-500">{next?.title ?? "No pending next step"}</p>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-400">Progress</p>
+              <p className="mt-1 text-sm font-medium text-neutral-900">{doneCount}/{row.steps.length} steps done</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {row.steps.map(step => (
+            <div key={step.id} className={`rounded-full px-3 py-1 text-xs ${step.status === "DONE" ? "bg-green-50 text-green-700" : step.status === "ACTIVE" ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-500"}`}>
+              {step.step_order}. {step.assigned_user?.full_name?.split(" ")[0] ?? "Pending"}
+            </div>
+          ))}
+        </div>
+      </Link>
 
       <ActionPanel row={row} currentUserId={currentUserId} onPassed={onPassed} />
     </article>

@@ -48,41 +48,34 @@ function CurrentHolder({ pipeline, steps }: { pipeline: Pipeline; steps: Pipelin
   const next = active ? steps.find(step => step.step_order > active.step_order && step.status === "PENDING") : null
   const done = steps.filter(step => step.status === "DONE").length
   const total = steps.length
-  const pct = total ? Math.round((done / total) * 100) : 0
   const deadline = getDeadlineMeta(active?.assigned_at)
 
   if (pipeline.status === "COMPLETED") {
     return (
       <div className="rounded-[28px] bg-green-50 px-6 py-5 ring-1 ring-green-200/70">
-        <p className="text-sm font-semibold text-green-900">This tracked item is complete.</p>
-        <p className="mt-1 text-sm text-green-700">All {total} steps were finished{pipeline.completed_at ? ` on ${fmtDate(pipeline.completed_at)}` : ""}.</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-green-800">Current status</p>
+        <p className="mt-2 text-2xl font-semibold text-green-950">This tracked item is complete.</p>
+        <p className="mt-2 text-sm text-green-800">All {total} steps were finished{pipeline.completed_at ? ` on ${fmtDate(pipeline.completed_at)}` : ""}.</p>
       </div>
     )
   }
 
   return (
-    <div className="rounded-[28px] bg-white px-6 py-5 ring-1 ring-neutral-200/70">
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">Current holder</p>
+    <div className="rounded-[28px] bg-neutral-900 px-6 py-6 text-white ring-1 ring-neutral-900/80">
+      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-300">Current holder</p>
       {active ? (
         <>
-          <p className="mt-3 text-sm text-neutral-500">Currently with</p>
-          <p className="text-xl font-semibold text-neutral-900">{active.assigned_user?.full_name ?? "—"}</p>
-          <p className="mt-1 text-sm text-neutral-500">{active.title}</p>
-          <p className="mt-2 text-xs text-neutral-500">Received {fmtDateTime(active.assigned_at)}</p>
-          {deadline && <span className={`mt-3 inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ${deadline.tone}`}>{deadline.label}</span>}
-          {next && <p className="mt-3 text-xs text-neutral-500">Next: <span className="font-medium text-neutral-700">{next.assigned_user?.full_name ?? "—"}</span> · {next.title}</p>}
+          <p className="mt-3 text-sm text-neutral-300">This file is currently with</p>
+          <p className="mt-1 text-3xl font-semibold">{active.assigned_user?.full_name ?? "—"}</p>
+          <p className="mt-2 text-sm text-neutral-200">{active.title}</p>
+          <p className="mt-2 text-sm text-neutral-300">Since {fmtDateTime(active.assigned_at)}</p>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {deadline && <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ${deadline.tone}`}>{deadline.label}</span>}
+            <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/90">{done} of {total} steps done</span>
+          </div>
+          {next && <p className="mt-4 text-sm text-neutral-300">Next up: <span className="font-medium text-white">{next.assigned_user?.full_name ?? "—"}</span> · {next.title}</p>}
         </>
-      ) : <p className="mt-3 text-sm text-neutral-500">No active step found.</p>}
-
-      <div className="mt-5">
-        <div className="mb-1.5 flex items-center justify-between text-xs text-neutral-400">
-          <span>{done} of {total} steps done</span>
-          <span>{pct}%</span>
-        </div>
-        <div className="h-2 overflow-hidden rounded-full bg-neutral-100">
-          <div className="h-full rounded-full bg-neutral-900 transition-all" style={{ width: `${pct}%` }} />
-        </div>
-      </div>
+      ) : <p className="mt-3 text-sm text-neutral-300">No active step found.</p>}
     </div>
   )
 }
@@ -136,66 +129,64 @@ function StepRow({ step, isLast, isMine, isLastStep, canManage, allUsers, pipeli
       <div className={`relative z-10 mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold ${nodeCls}`}>{step.status === "DONE" ? "✓" : step.step_order}</div>
 
       <div className={`ml-4 flex-1 ${!isLast ? "pb-6" : ""}`}>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-semibold text-neutral-900">{step.title}</span>
-          <StatusBadge status={step.status} />
-          {isMine && step.status === "ACTIVE" && <span className="rounded-full bg-neutral-900 px-2 py-0.5 text-[11px] font-semibold text-white">Your turn</span>}
-          {deadline && <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${deadline.tone}`}>{deadline.label}</span>}
-        </div>
-
-        {step.action_note && <p className="mt-1 text-sm text-neutral-500">{step.action_note}</p>}
-
-        <div className="mt-2 grid gap-2 sm:grid-cols-2">
-          <div className="rounded-2xl bg-neutral-50 px-4 py-3 ring-1 ring-neutral-200/70">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-400">Assigned to</p>
-            <p className="mt-1 text-sm font-medium text-neutral-900">{step.assigned_user?.full_name ?? "Unassigned"}</p>
-            <p className="mt-1 text-xs text-neutral-500">Received {fmtDateTime(step.assigned_at)}</p>
-          </div>
-          <div className="rounded-2xl bg-neutral-50 px-4 py-3 ring-1 ring-neutral-200/70">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-400">Completed</p>
-            <p className="mt-1 text-sm font-medium text-neutral-900">{step.completed_at ? fmtDateTime(step.completed_at) : "Not completed yet"}</p>
-            {step.completed_by_user?.full_name && <p className="mt-1 text-xs text-neutral-500">By {step.completed_by_user.full_name}</p>}
-          </div>
-        </div>
-
-        {step.remarks && <p className="mt-2 border-l-2 border-neutral-200 pl-3 text-xs italic text-neutral-500">{step.remarks}</p>}
-        {err && <p className="mt-2 text-xs text-red-600">{err}</p>}
-
-        {isMine && step.status === "ACTIVE" && !showAction && !showReassign && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button onClick={() => setShowAction(true)} className={`rounded-2xl px-4 py-2 text-sm font-medium text-white transition ${isLastStep ? "bg-green-700 hover:bg-green-800" : "bg-neutral-900 hover:bg-neutral-700"}`}>{isLastStep ? "Mark as done" : "Pass to next"}</button>
-          </div>
-        )}
-
-        {showAction && (
-          <div className="mt-3 max-w-lg rounded-3xl border border-neutral-200 bg-neutral-50 p-4">
-            <p className="text-sm font-semibold text-neutral-900">Confirm this step</p>
-            <p className="mt-1 text-xs text-neutral-500">{isLastStep ? "This finishes the workflow and marks the item completed." : "This marks your step done and activates the next person in the chain."}</p>
-            <textarea value={remarks} onChange={e => setRemarks(e.target.value)} rows={3} className="mt-3 w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-neutral-200" placeholder="Optional note…" />
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button onClick={handlePassToNext} disabled={isPending} className="rounded-2xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50">{isPending ? "Processing…" : "Confirm"}</button>
-              <button onClick={() => { setShowAction(false); setRemarks(""); setErr(null) }} className="rounded-2xl border border-neutral-200 px-4 py-2 text-sm text-neutral-600 transition hover:bg-white">Cancel</button>
+        <div className="rounded-3xl border border-neutral-200/80 bg-white px-4 py-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold text-neutral-900">{step.title}</span>
+                <StatusBadge status={step.status} />
+                {isMine && step.status === "ACTIVE" && <span className="rounded-full bg-neutral-900 px-2 py-0.5 text-[11px] font-semibold text-white">Your turn</span>}
+                {deadline && <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${deadline.tone}`}>{deadline.label}</span>}
+              </div>
+              {step.action_note && <p className="mt-1 text-sm text-neutral-500">{step.action_note}</p>}
+            </div>
+            <div className="text-sm text-neutral-500 sm:text-right">
+              <p><span className="font-medium text-neutral-700">With:</span> {step.assigned_user?.full_name ?? "Unassigned"}</p>
+              <p className="mt-1">{step.assigned_at ? `Received ${fmtDateTime(step.assigned_at)}` : "Not yet assigned"}</p>
+              <p className="mt-1">{step.completed_at ? `Completed ${fmtDateTime(step.completed_at)}` : "Not completed yet"}</p>
+              {step.completed_by_user?.full_name && <p className="mt-1">By {step.completed_by_user.full_name}</p>}
             </div>
           </div>
-        )}
 
-        {canManage && step.status !== "DONE" && !showAction && !showReassign && (
-          <button onClick={() => setShowReassign(true)} className="mt-3 text-xs text-neutral-400 underline underline-offset-2 hover:text-neutral-700">Reassign this step</button>
-        )}
+          {step.remarks && <p className="mt-3 border-l-2 border-neutral-200 pl-3 text-xs italic text-neutral-500">{step.remarks}</p>}
+          {err && <p className="mt-2 text-xs text-red-600">{err}</p>}
 
-        {showReassign && (
-          <div className="mt-3 max-w-lg rounded-3xl border border-neutral-200 bg-neutral-50 p-4">
-            <p className="text-sm font-semibold text-neutral-900">Reassign this step</p>
-            <select value={reassignId} onChange={e => setReassignId(e.target.value)} className="mt-3 w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-neutral-200">
-              <option value="">Select a person…</option>
-              {allUsers.map(user => <option key={user.id} value={user.id}>{user.full_name}{user.department ? ` — ${user.department}` : ""}</option>)}
-            </select>
+          {isMine && step.status === "ACTIVE" && !showAction && !showReassign && (
             <div className="mt-3 flex flex-wrap gap-2">
-              <button onClick={handleReassign} disabled={!reassignId || isPending} className="rounded-2xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50">{isPending ? "Saving…" : "Confirm"}</button>
-              <button onClick={() => { setShowReassign(false); setReassignId(""); setErr(null) }} className="rounded-2xl border border-neutral-200 px-4 py-2 text-sm text-neutral-600 transition hover:bg-white">Cancel</button>
+              <button onClick={() => setShowAction(true)} className={`rounded-2xl px-4 py-2 text-sm font-medium text-white transition ${isLastStep ? "bg-green-700 hover:bg-green-800" : "bg-neutral-900 hover:bg-neutral-700"}`}>{isLastStep ? "Mark as done" : "Pass to next"}</button>
             </div>
-          </div>
-        )}
+          )}
+
+          {showAction && (
+            <div className="mt-3 max-w-lg rounded-3xl border border-neutral-200 bg-neutral-50 p-4">
+              <p className="text-sm font-semibold text-neutral-900">Confirm this step</p>
+              <p className="mt-1 text-xs text-neutral-500">{isLastStep ? "This finishes the workflow and marks the item completed." : "This marks your step done and activates the next person in the chain."}</p>
+              <textarea value={remarks} onChange={e => setRemarks(e.target.value)} rows={3} className="mt-3 w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-neutral-200" placeholder="Optional note…" />
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button onClick={handlePassToNext} disabled={isPending} className="rounded-2xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50">{isPending ? "Processing…" : "Confirm"}</button>
+                <button onClick={() => { setShowAction(false); setRemarks(""); setErr(null) }} className="rounded-2xl border border-neutral-200 px-4 py-2 text-sm text-neutral-600 transition hover:bg-white">Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {canManage && step.status !== "DONE" && !showAction && !showReassign && (
+            <button onClick={() => setShowReassign(true)} className="mt-3 text-xs text-neutral-400 underline underline-offset-2 hover:text-neutral-700">Reassign this step</button>
+          )}
+
+          {showReassign && (
+            <div className="mt-3 max-w-lg rounded-3xl border border-neutral-200 bg-neutral-50 p-4">
+              <p className="text-sm font-semibold text-neutral-900">Reassign this step</p>
+              <select value={reassignId} onChange={e => setReassignId(e.target.value)} className="mt-3 w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-neutral-200">
+                <option value="">Select a person…</option>
+                {allUsers.map(user => <option key={user.id} value={user.id}>{user.full_name}{user.department ? ` — ${user.department}` : ""}</option>)}
+              </select>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button onClick={handleReassign} disabled={!reassignId || isPending} className="rounded-2xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50">{isPending ? "Saving…" : "Confirm"}</button>
+                <button onClick={() => { setShowReassign(false); setReassignId(""); setErr(null) }} className="rounded-2xl border border-neutral-200 px-4 py-2 text-sm text-neutral-600 transition hover:bg-white">Cancel</button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -244,8 +235,6 @@ export function PipelineDetailView({ pipeline, letter, currentUser, auditLog, al
 
   const canManage = currentUser.role === "ADMIN" || currentUser.role === "SECRETARY"
   const steps = pipeline?.steps ?? []
-  const active = steps.find(step => step.status === "ACTIVE")
-  const next = active ? steps.find(step => step.step_order > active.step_order && step.status === "PENDING") : null
 
   return (
     <div className="w-full min-w-0">
@@ -275,26 +264,7 @@ export function PipelineDetailView({ pipeline, letter, currentUser, auditLog, al
               </div>
             </section>
 
-            {pipeline ? (
-              <section className="rounded-[28px] bg-white px-5 py-4 ring-1 ring-neutral-200/70">
-                <div className="grid gap-3 md:grid-cols-3">
-                  <div>
-                    <p className="text-xs text-neutral-500">Current holder</p>
-                    <p className="mt-1 text-sm font-semibold text-neutral-900">{active?.assigned_user?.full_name ?? (pipeline.status === "COMPLETED" ? "Completed" : "Waiting")}</p>
-                    <p className="mt-1 text-xs text-neutral-500">{active?.assigned_at ? `Received ${fmtDateTime(active.assigned_at)}` : "No active holder"}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-neutral-500">Next</p>
-                    <p className="mt-1 text-sm font-semibold text-neutral-900">{next?.assigned_user?.full_name ?? (pipeline.status === "COMPLETED" ? "Finished" : "Final step")}</p>
-                    <p className="mt-1 text-xs text-neutral-500">{next?.title ?? (pipeline.status === "COMPLETED" ? "All steps done" : "No later step pending")}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-neutral-500">Progress</p>
-                    <p className="mt-1 text-sm font-semibold text-neutral-900">{steps.filter(step => step.status === "DONE").length}/{steps.length} steps</p>
-                  </div>
-                </div>
-              </section>
-            ) : null}
+            {pipeline ? <CurrentHolder pipeline={pipeline} steps={steps} /> : null}
 
             {!pipeline && (
               <div className="rounded-[28px] bg-white px-6 py-10 text-center ring-1 ring-neutral-200/70">
@@ -309,7 +279,8 @@ export function PipelineDetailView({ pipeline, letter, currentUser, auditLog, al
                 <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">Timeline</p>
-                    <h2 className="mt-1 text-lg font-semibold text-neutral-900">See exactly where this file or letter is</h2>
+                    <h2 className="mt-1 text-lg font-semibold text-neutral-900">Where the file has moved</h2>
+                    <p className="mt-1 text-sm text-neutral-500">Each step shows who held the file, when they received it, and whether it has been completed.</p>
                   </div>
                 </div>
                 {steps.map((step, index) => (
@@ -334,7 +305,10 @@ export function PipelineDetailView({ pipeline, letter, currentUser, auditLog, al
 
           {pipeline && (
             <div className="space-y-5 xl:sticky xl:top-6 xl:self-start">
-              <CurrentHolder pipeline={pipeline} steps={steps} />
+              <div className="rounded-[28px] bg-white px-6 py-5 ring-1 ring-neutral-200/70">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">Quick summary</p>
+                <p className="mt-2 text-sm text-neutral-500">Open the timeline to see the full handoff history, notes, and reassignment actions.</p>
+              </div>
             </div>
           )}
         </div>
