@@ -36,7 +36,7 @@ export default async function EditLetterPage({
         </Link>
 
         <div className="mt-6 rounded-3xl bg-white p-6 ring-1 ring-red-200/70">
-          <p className="text-sm text-red-700">You do not have permission to edit this letter.</p>
+          <p className="text-sm text-red-700">You do not have permission to edit this letter. Staff users are blocked from the edit route at the server level.</p>
         </div>
       </div>
     );

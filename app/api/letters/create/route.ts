@@ -85,6 +85,7 @@ export async function POST(req: Request) {
   }
 
   const recipient_user_ids = asArray(body?.recipient_user_ids);
+  const firstHandlerUserId = String(body?.first_handler_user_id || "").trim();
   if (confidentiality === "CONFIDENTIAL" && recipient_user_ids.length === 0) {
     return NextResponse.json(
       { error: "recipient_user_ids is required for CONFIDENTIAL letters." },
@@ -121,6 +122,22 @@ export async function POST(req: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
+  if (firstHandlerUserId) {
+    const { error: wfErr } = await admin.from("letter_workflow_steps").insert({
+      letter_id: inserted.id,
+      user_id: firstHandlerUserId,
+      assigned_by: auth.user.id,
+      step_order: 1,
+      status: "PENDING",
+      notes: "Initial workflow assignment",
+    });
+
+    if (wfErr && !String(wfErr.message || "").toLowerCase().includes("letter_workflow_steps")) {
+      await admin.from("letters").delete().eq("id", inserted.id);
+      return NextResponse.json({ error: wfErr.message }, { status: 400 });
+    }
+  }
+
   if (confidentiality === "CONFIDENTIAL") {
     const rows = recipient_user_ids.map((uid) => ({ letter_id: inserted.id, user_id: uid }));
     const { error: rErr } = await admin.from("letter_recipients").insert(rows);
@@ -141,6 +158,7 @@ export async function POST(req: Request) {
         confidentiality,
         recipient_department: insertLetter.recipient_department,
         recipient_user_ids: confidentiality === "CONFIDENTIAL" ? recipient_user_ids : [],
+        first_handler_user_id: firstHandlerUserId || null,
       },
     },
   ]);

@@ -9,6 +9,10 @@ export async function POST(req: Request) {
   const supabase = await supabaseServer();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", auth.user.id).maybeSingle();
+  if (!["ADMIN", "SECRETARY"].includes(profile?.role || "")) {
+    return NextResponse.json({ error: "Only admin or secretary can create letters." }, { status: 403 });
+  }
 
   // 2) Read form data
   const form = await req.formData();

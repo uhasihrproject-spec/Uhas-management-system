@@ -98,7 +98,7 @@ function Modal({
           <div>
             <h3 className="text-lg font-semibold text-neutral-900">{title}</h3>
             <p className="mt-0.5 text-sm text-neutral-600">
-              Search and select who can view this letter
+              Search users for confidentiality access and the first workflow handler
             </p>
           </div>
           <button
@@ -134,6 +134,7 @@ export default function NewLetterForm() {
   const [subject, setSubject] = useState("");
   const [summary, setSummary] = useState("");
   const [category, setCategory] = useState("");
+  const [letterType, setLetterType] = useState("General");
   const [tags, setTags] = useState("");
 
   // Department: text for INCOMING, dropdown for OUTGOING
@@ -149,6 +150,7 @@ export default function NewLetterForm() {
   const [userLoading, setUserLoading] = useState(false);
   const [userResults, setUserResults] = useState<UserPick[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<UserPick[]>([]);
+  const [firstHandler, setFirstHandler] = useState<UserPick | null>(null);
 
   const year = useMemo(() => new Date(dateReceived).getFullYear(), [dateReceived]);
 
@@ -232,6 +234,11 @@ export default function NewLetterForm() {
     setUserResults((prev) => prev.filter((x) => x.id !== u.id));
   }
 
+  function selectFirstHandler(u: UserPick) {
+    setFirstHandler(u);
+    setRecModalOpen(false);
+  }
+
   function removeUser(id: string) {
     setSelectedUsers((prev) => prev.filter((u) => u.id !== id));
   }
@@ -268,6 +275,7 @@ export default function NewLetterForm() {
     if (confidentiality === "CONFIDENTIAL" && selectedUsers.length === 0) {
       return setErr("Add at least one recipient for Confidential letters.");
     }
+    if (!firstHandler) return setErr("Assign the first workflow handler before creating the letter.");
 
     setLoading(true);
     try {
@@ -288,7 +296,8 @@ export default function NewLetterForm() {
         sender_org: senderOrg || null,
         subject,
         summary: summary || null,
-        category: category || null,
+        category: category || letterType || null,
+        first_handler_user_id: firstHandler?.id || null,
         confidentiality,
         status,
         recipient_department: finalDept, //  Always filled based on direction
@@ -328,7 +337,7 @@ export default function NewLetterForm() {
             <div>
               <h2 className="text-xl font-semibold text-neutral-900">New Letter</h2>
               <p className="mt-1 text-sm text-neutral-600">
-                Record a new incoming or outgoing letter
+                Record a new incoming or outgoing letter, then assign the first workflow handler.
               </p>
             </div>
             
@@ -336,6 +345,29 @@ export default function NewLetterForm() {
               <Lock className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
               <span className="text-xs font-medium text-emerald-700">Secure</span>
             </div>
+          </div>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="rounded-2xl bg-white border border-neutral-200 p-4 sm:p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Building2 className="w-5 h-5 text-neutral-600 flex-shrink-0" />
+              <h3 className="text-sm font-semibold text-neutral-900">Letter Classification</h3>
+            </div>
+            <label className="text-xs font-medium text-neutral-700">Letter Type</label>
+            <input value={letterType} onChange={(e) => setLetterType(e.target.value)} className={`${inputCls} mt-2`} placeholder="Contract, Memo, Procurement, Circular" />
+          </div>
+          <div className="rounded-2xl bg-white border border-neutral-200 p-4 sm:p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Users className="w-5 h-5 text-neutral-600 flex-shrink-0" />
+              <h3 className="text-sm font-semibold text-neutral-900">Workflow Kickoff</h3>
+            </div>
+            <p className="text-xs text-neutral-600">Choose the first handler who should take action after the letter is created.</p>
+            <div className="mt-3 flex gap-2">
+              <input value={userQuery} onChange={(e) => setUserQuery(e.target.value)} className={`${inputCls} flex-1`} placeholder="Search user name or department" />
+              <button type="button" onClick={() => setRecModalOpen(true)} className="px-4 py-2.5 rounded-xl bg-neutral-100 text-sm font-medium text-neutral-700 hover:bg-neutral-200">Browse</button>
+            </div>
+            {firstHandler ? <div className="mt-3 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800 ring-1 ring-emerald-100">First handler: <span className="font-semibold">{userLabel(firstHandler)}</span></div> : <p className="mt-3 text-sm text-amber-700">No first handler selected yet.</p>}
           </div>
         </div>
 
@@ -768,17 +800,21 @@ export default function NewLetterForm() {
                 </div>
               ) : (
                 userResults.map((u) => (
-                  <button
+                  <div
                     key={u.id}
-                    type="button"
-                    onClick={() => addUser(u)}
-                    className="w-full text-left px-4 py-3 hover:bg-emerald-50 border-b border-neutral-100 last:border-b-0 transition-colors"
+                    className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-emerald-50 border-b border-neutral-100 last:border-b-0 transition-colors"
                   >
-                    <div className="text-sm font-medium text-neutral-900">{userLabel(u)}</div>
-                    <div className="text-xs text-neutral-500 mt-0.5">
-                      {u.department || "No department"} {u.role && `• ${u.role}`}
+                    <div>
+                      <div className="text-sm font-medium text-neutral-900">{userLabel(u)}</div>
+                      <div className="text-xs text-neutral-500 mt-0.5">
+                        {u.department || "No department"} {u.role && `• ${u.role}`}
+                      </div>
                     </div>
-                  </button>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => selectFirstHandler(u)} className="rounded-lg bg-emerald-100 px-3 py-2 text-xs font-medium text-emerald-800">First handler</button>
+                      {confidentiality === "CONFIDENTIAL" ? <button type="button" onClick={() => addUser(u)} className="rounded-lg bg-white px-3 py-2 text-xs font-medium text-neutral-700 ring-1 ring-neutral-200">Recipient</button> : null}
+                    </div>
+                  </div>
                 ))
               )}
             </div>
