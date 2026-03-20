@@ -89,6 +89,7 @@ function CurrentHolder({ pipeline, steps }: { pipeline: Pipeline; steps: Pipelin
 }
 
 function StepRow({ step, isLast, isMine, nextPendingStep, canManage, allUsers, pipelineId, onToast }: { step: PipelineStep; isLast: boolean; isMine: boolean; nextPendingStep: PipelineStep | null; canManage: boolean; allUsers: SlimProfile[]; pipelineId: string; onToast: (msg: string) => void }) {
+  const canAct = isMine || canManage
   const [open, setOpen] = useState(step.status === "ACTIVE")
   const [showAction, setShowAction] = useState(false)
   const [showReassign, setShowReassign] = useState(false)
@@ -193,8 +194,9 @@ function StepRow({ step, isLast, isMine, nextPendingStep, canManage, allUsers, p
           {step.action_note && <p className="mt-4 text-sm text-neutral-600"><span className="font-medium text-neutral-900">Note:</span> {step.action_note}</p>}
           {step.remarks && <p className="mt-2 text-sm text-neutral-600"><span className="font-medium text-neutral-900">Remark:</span> {step.remarks}</p>}
           {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
+          {step.status === "ACTIVE" && !canAct && <p className="mt-3 text-sm text-neutral-500">Only {step.assigned_user?.full_name ?? "the current holder"} can move or mark this step as done.</p>}
 
-          {step.status === "ACTIVE" && !showAction && !showReassign && (
+          {step.status === "ACTIVE" && canAct && !showAction && !showReassign && (
             <div className="mt-4 flex flex-wrap gap-2">
               <button onClick={() => { setActionMode("move"); setShowAction(true) }} className="rounded-2xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700">Move to next person</button>
               <button onClick={() => { setActionMode("done"); setShowAction(true) }} className="rounded-2xl bg-green-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-green-800">Mark as done</button>

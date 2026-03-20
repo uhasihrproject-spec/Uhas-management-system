@@ -281,8 +281,9 @@ export async function passToNext(
     if (pipeline.status !== "IN_PROGRESS")
       return { ok: false, error: "Pipeline is not in progress." }
 
-    // KEY RULE: only the assigned user (or admin/secretary) can act
     await assertLetterAccess(pipeline.letter_id, actor.id, actor.role)
+    if (!isPrivileged(actor.role) && step.assigned_user_id !== actor.id)
+      return { ok: false, error: "Only the current holder can move or complete this step." }
 
     const { data: allSteps } = await admin
       .from("letter_pipeline_steps")
@@ -413,6 +414,8 @@ export async function markDone(
       return { ok: false, error: "Pipeline is not in progress." }
 
     await assertLetterAccess(pipeline.letter_id, actor.id, actor.role)
+    if (!isPrivileged(actor.role) && step.assigned_user_id !== actor.id)
+      return { ok: false, error: "Only the current holder can move or complete this step." }
 
     // Confirm it actually is the last step
     const { data: allSteps } = await admin

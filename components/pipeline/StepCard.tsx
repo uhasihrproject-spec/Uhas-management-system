@@ -29,6 +29,7 @@ interface Props {
 }
 
 export function StepCard({ step, isLast, isMine, isLastStep, nextStepNeedsAssignee = false, canManage, allUsers, pipelineId, onToast }: Props) {
+  const canAct = isMine || canManage
   const [showAction, setShowAction] = useState(false)
   const [showReassign, setShowReassign] = useState(false)
   const [remarks, setRemarks] = useState("")
@@ -101,8 +102,9 @@ export function StepCard({ step, isLast, isMine, isLastStep, nextStepNeedsAssign
 
         {step.remarks && <p className="mt-2 border-l-2 border-neutral-200 pl-3 text-xs italic text-neutral-500">{step.remarks}</p>}
         {fieldError && <p className="mt-2 text-xs text-red-600">{fieldError}</p>}
+        {step.status === "ACTIVE" && !canAct && <p className="mt-2 text-xs text-neutral-500">Only {step.assigned_user?.full_name ?? "the current holder"} can move or mark this step as done.</p>}
 
-        {step.status === "ACTIVE" && !showAction && !showReassign && (
+        {step.status === "ACTIVE" && canAct && !showAction && !showReassign && (
           <div className="mt-3 flex flex-wrap gap-2">
             <button onClick={() => { setActionMode("move"); setShowAction(true) }} className="inline-flex items-center gap-1.5 rounded-xl bg-neutral-900 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-neutral-700">Move to next person</button>
             <button onClick={() => { setActionMode("done"); setShowAction(true) }} className="inline-flex items-center gap-1.5 rounded-xl bg-green-700 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-green-800">Mark as done</button>

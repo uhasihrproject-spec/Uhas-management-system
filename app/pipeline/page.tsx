@@ -74,6 +74,7 @@ export default async function PipelinePage() {
             otherRows={otherRows as any}
             currentUserId={profile.id}
             allUsers={(users ?? []) as any}
+            canManage={canCreate}
           />
         )}
       </div>
