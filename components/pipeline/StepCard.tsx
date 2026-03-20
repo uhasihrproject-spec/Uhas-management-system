@@ -194,7 +194,7 @@ export function StepCard({
                 ? "bg-green-700 hover:bg-green-800"
                 : "bg-neutral-900 hover:bg-neutral-700"}`}
           >
-            {isLastStep ? "Mark as done" : "Pass to next"}
+            {isLastStep ? "Mark as done" : "Move to next person"}
             {!isLastStep && (
               <svg className="h-3.5 w-3.5" viewBox="0 0 14 14" fill="none">
                 <path d="M3 7h8M8 4l3 3-3 3" stroke="currentColor" strokeWidth="1.5"

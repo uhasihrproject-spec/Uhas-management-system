@@ -107,7 +107,7 @@ function ActionPanel({ row, currentUserId, onPassed }: { row: PipelineRow; curre
     <div className="mt-4 border-t border-neutral-100 pt-4">
       {!open ? (
         <button type="button" onClick={() => setOpen(true)} className={`rounded-2xl px-4 py-2.5 text-sm font-medium text-white ${isLast ? "bg-green-700 hover:bg-green-800" : "bg-neutral-900 hover:bg-neutral-700"}`}>
-          {isLast ? "Mark done" : "Pass to next"}
+          {isLast ? "Mark as done" : "Move to next person"}
         </button>
       ) : (
         <div className="max-w-lg rounded-2xl bg-neutral-50 p-4 ring-1 ring-neutral-200/70">

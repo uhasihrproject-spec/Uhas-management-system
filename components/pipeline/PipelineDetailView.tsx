@@ -101,7 +101,7 @@ function StepRow({ step, isLast, isMine, isLastStep, canManage, allUsers, pipeli
       setShowAction(false)
       setRemarks("")
       const nextUserName = !isLastStep && res.data && "next_user_name" in res.data ? res.data.next_user_name : null
-      onToast(isLastStep ? "Final step completed." : nextUserName ? `Passed to ${nextUserName}.` : "Passed to the next person.")
+      onToast(isLastStep ? "Final step completed." : nextUserName ? `Moved to ${nextUserName}.` : "Moved to the next person.")
     })
   }
 
@@ -153,14 +153,14 @@ function StepRow({ step, isLast, isMine, isLastStep, canManage, allUsers, pipeli
 
           {isMine && step.status === "ACTIVE" && !showAction && !showReassign && (
             <div className="mt-3 flex flex-wrap gap-2">
-              <button onClick={() => setShowAction(true)} className={`rounded-2xl px-4 py-2 text-sm font-medium text-white transition ${isLastStep ? "bg-green-700 hover:bg-green-800" : "bg-neutral-900 hover:bg-neutral-700"}`}>{isLastStep ? "Mark as done" : "Pass to next"}</button>
+              <button onClick={() => setShowAction(true)} className={`rounded-2xl px-4 py-2 text-sm font-medium text-white transition ${isLastStep ? "bg-green-700 hover:bg-green-800" : "bg-neutral-900 hover:bg-neutral-700"}`}>{isLastStep ? "Mark as done" : "Move to next person"}</button>
             </div>
           )}
 
           {showAction && (
             <div className="mt-3 max-w-lg rounded-3xl border border-neutral-200 bg-neutral-50 p-4">
               <p className="text-sm font-semibold text-neutral-900">Confirm this step</p>
-              <p className="mt-1 text-xs text-neutral-500">{isLastStep ? "This finishes the workflow and marks the item completed." : "This marks your step done and activates the next person in the chain."}</p>
+              <p className="mt-1 text-xs text-neutral-500">{isLastStep ? "This finishes the workflow and marks the item completed." : "This marks your step as done and moves the file to the next person in the chain."}</p>
               <textarea value={remarks} onChange={e => setRemarks(e.target.value)} rows={3} className="mt-3 w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-neutral-200" placeholder="Optional note…" />
               <div className="mt-3 flex flex-wrap gap-2">
                 <button onClick={handlePassToNext} disabled={isPending} className="rounded-2xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50">{isPending ? "Processing…" : "Confirm"}</button>
