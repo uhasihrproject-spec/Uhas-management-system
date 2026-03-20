@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 interface ReminderItem {
   step_id: string
@@ -22,19 +22,36 @@ function fmtDateTime(iso: string | null) {
 export default function GlobalTrackReminder() {
   const [items, setItems] = useState<ReminderItem[]>([])
   const [open, setOpen] = useState(false)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     let active = true
-    fetch("/api/pipeline/reminders", { cache: "no-store" })
-      .then(res => res.ok ? res.json() : { items: [] })
-      .then(data => {
-        if (!active) return
-        const nextItems = Array.isArray(data?.items) ? data.items : []
-        setItems(nextItems)
-        if (nextItems.length > 0) setOpen(true)
-      })
-      .catch(() => {})
-    return () => { active = false }
+
+    const scheduleNextPoll = () => {
+      if (!active) return
+      const nextDelay = 45_000 + Math.floor(Math.random() * 135_000)
+      timerRef.current = setTimeout(loadReminders, nextDelay)
+    }
+
+    const loadReminders = () => {
+      fetch("/api/pipeline/reminders", { cache: "no-store" })
+        .then(res => res.ok ? res.json() : { items: [] })
+        .then(data => {
+          if (!active) return
+          const nextItems = Array.isArray(data?.items) ? data.items : []
+          setItems(nextItems)
+          if (nextItems.length > 0) setOpen(true)
+        })
+        .catch(() => {})
+        .finally(() => scheduleNextPoll())
+    }
+
+    loadReminders()
+
+    return () => {
+      active = false
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
   }, [])
 
   if (!open || items.length === 0) return null

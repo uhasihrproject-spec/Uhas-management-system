@@ -185,7 +185,7 @@ export function StepCard({
         )}
 
         {/* ── Primary action: Pass / Mark done ─────────────────────────── */}
-        {isMine && step.status === "ACTIVE" && !showAction && !showReassign && (
+        {step.status === "ACTIVE" && !showAction && !showReassign && (
           <button
             onClick={() => setShowAction(true)}
             className={`mt-3 inline-flex items-center gap-1.5 rounded-xl px-4 py-2

@@ -151,7 +151,7 @@ function StepRow({ step, isLast, isMine, hasNextPendingStep, canManage, allUsers
           {step.remarks && <p className="mt-3 border-l-2 border-neutral-200 pl-3 text-xs italic text-neutral-500">{step.remarks}</p>}
           {err && <p className="mt-2 text-xs text-red-600">{err}</p>}
 
-          {isMine && step.status === "ACTIVE" && !showAction && !showReassign && (
+          {step.status === "ACTIVE" && !showAction && !showReassign && (
             <div className="mt-3 flex flex-wrap gap-2">
               <button onClick={() => setShowAction(true)} className={`rounded-2xl px-4 py-2 text-sm font-medium text-white transition ${hasNextPendingStep ? "bg-neutral-900 hover:bg-neutral-700" : "bg-green-700 hover:bg-green-800"}`}>{hasNextPendingStep ? "Move to next person" : "Mark as done"}</button>
             </div>

@@ -85,7 +85,7 @@ function ActionPanel({ row, currentUserId, onPassed }: { row: PipelineRow; curre
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
-  if (!activeStep || !isMine) return null
+  if (!activeStep) return null
 
   const handleConfirm = () => {
     setError(null)
