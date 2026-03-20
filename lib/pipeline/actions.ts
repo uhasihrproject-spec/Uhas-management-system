@@ -485,7 +485,7 @@ export async function getLettersWithPipelines() {
         id, status, current_step_order, started_at, completed_at,
         letter:letters!letter_id(
           id, ref_no, subject, sender_name, date_received,
-          status, confidentiality, recipient_department
+          status, confidentiality, recipient_department, file_name
         )
       `)
       .neq("status", "CANCELLED")
@@ -509,7 +509,7 @@ export async function getLettersWithPipelines() {
           id, status, current_step_order, started_at, completed_at,
           letter:letters!letter_id(
             id, ref_no, subject, sender_name, date_received,
-            status, confidentiality, recipient_department
+            status, confidentiality, recipient_department, file_name
           )
         )
       `)
@@ -553,7 +553,7 @@ export async function getLettersWithPipelines() {
     .from("letter_pipeline_steps")
     .select(`
       id, pipeline_id, step_order, title, status,
-      assigned_user_id,
+      assigned_user_id, assigned_at, completed_at,
       assigned_user:profiles!assigned_user_id(id, full_name, department)
     `)
     .in("pipeline_id", pipelineIds)

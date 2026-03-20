@@ -46,9 +46,9 @@ export default async function PipelinePage() {
             <p className="text-xs uppercase tracking-[0.25em] text-neutral-600">
               UHAS Procurement Directorate
             </p>
-            <h1 className="mt-2 text-2xl sm:text-3xl font-semibold">File Movement</h1>
+            <h1 className="mt-2 text-2xl sm:text-3xl font-semibold">Track Progress</h1>
             <p className="mt-2 text-sm text-neutral-800">
-              Track where each letter is in the review chain. Letters move from person to person until complete.
+              Search and follow where each file or letter is right now, who handled it, and what comes next.
             </p>
           </div>
           {canCreate && (
@@ -57,7 +57,7 @@ export default async function PipelinePage() {
               className="inline-flex items-center rounded-2xl px-4 py-2.5 text-sm text-white
                 btn-brand bg-neutral-900 hover:bg-neutral-700 transition-colors"
             >
-              + New pipeline
+              + New track progress
             </Link>
           )}
         </div>
@@ -67,11 +67,11 @@ export default async function PipelinePage() {
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 pb-10 space-y-8">
         {rows.length === 0 ? (
           <div className="rounded-3xl bg-white ring-1 ring-neutral-200/70 p-12 text-center">
-            <p className="text-sm font-medium text-neutral-900">No active pipelines</p>
+            <p className="text-sm font-medium text-neutral-900">No tracked items yet</p>
             <p className="mt-1 text-sm text-neutral-400">
               {canCreate
-                ? "Create a pipeline to start tracking a letter through the review process."
-                : "You have no letters currently assigned to you in any pipeline."}
+                ? "Create a track progress workflow to start following a file or letter through each handoff."
+                : "You have no files or letters currently assigned to you in track progress."}
             </p>
             {canCreate && (
               <Link
@@ -79,7 +79,7 @@ export default async function PipelinePage() {
                 className="mt-5 inline-flex items-center rounded-2xl bg-neutral-900 px-5 py-2.5
                   text-sm text-white hover:bg-neutral-700 transition-colors"
               >
-                Create pipeline
+                Create track progress
               </Link>
             )}
           </div>
@@ -88,7 +88,6 @@ export default async function PipelinePage() {
             myRows={myRows as any}
             otherRows={otherRows as any}
             currentUserId={profile.id}
-            canManage={canCreate}
           />
         )}
       </div>

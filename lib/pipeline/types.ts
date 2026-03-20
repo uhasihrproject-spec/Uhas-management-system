@@ -66,6 +66,7 @@ export interface LetterSummary {
   status:               string
   confidentiality:      Confidentiality
   recipient_department: string | null
+  file_name?:           string | null
 }
 
 // ── Server action inputs ───────────────────────────────────────────────────
