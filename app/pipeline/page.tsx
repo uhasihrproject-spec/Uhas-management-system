@@ -1,14 +1,9 @@
-// app/pipeline/page.tsx
-// The main pipeline page. Shows each letter as a horizontal handler chain.
-// Current holder is highlighted. Actions (Pass / Mark Done) appear inline.
-// Server Component — data is fetched server-side, no loading state needed.
-
-import Link              from "next/link"
-import { redirect }      from "next/navigation"
+import Link from "next/link"
+import { redirect } from "next/navigation"
 import { supabaseServer } from "@/lib/supabase/server"
-import { supabaseAdmin }  from "@/lib/supabase/admin"
+import { supabaseAdmin } from "@/lib/supabase/admin"
 import { getLettersWithPipelines } from "@/lib/pipeline/actions"
-import { PipelineChainList }       from "@/components/pipeline/PipelineChainList"
+import { PipelineChainList } from "@/components/pipeline/PipelineChainList"
 
 export default async function PipelinePage() {
   const supabase = await supabaseServer()
@@ -35,55 +30,40 @@ export default async function PipelinePage() {
   try {
     rows = await getLettersWithPipelines()
   } catch {
-    // render empty
+    rows = []
   }
 
-  // Split: my active steps vs everything else
-  const myRows    = rows.filter(r => r.steps.some((s: any) => s.status === "ACTIVE" && s.assigned_user_id === profile.id))
+  const myRows = rows.filter(r => r.steps.some((s: any) => s.status === "ACTIVE" && s.assigned_user_id === profile.id))
   const otherRows = rows.filter(r => !r.steps.some((s: any) => s.status === "ACTIVE" && s.assigned_user_id === profile.id))
 
   return (
-    <div className="w-full min-w-0">
-      {/* Header */}
-      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="max-w-2xl">
-            <p className="text-xs uppercase tracking-[0.25em] text-neutral-600">
-              UHAS Procurement Directorate
-            </p>
-            <h1 className="mt-2 text-2xl sm:text-3xl font-semibold">Track Progress</h1>
-            <p className="mt-2 text-sm text-neutral-800">
-              Search and follow where each file or letter is right now, who handled it, and what comes next.
-            </p>
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+      <section className="rounded-[28px] bg-white px-5 py-6 ring-1 ring-neutral-200/70 sm:px-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-3xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">Track Progress</p>
+            <h1 className="mt-2 text-2xl font-semibold text-neutral-900 sm:text-3xl">Simple view of where each file is.</h1>
+            <p className="mt-2 text-sm text-neutral-500">See who has a file right now, what comes next, and tap to open full details only when you need them.</p>
           </div>
           {canCreate && (
-            <Link
-              href="/pipeline/new"
-              className="inline-flex items-center rounded-2xl px-4 py-2.5 text-sm text-white
-                btn-brand bg-neutral-900 hover:bg-neutral-700 transition-colors"
-            >
-              + New track progress
+            <Link href="/pipeline/new" className="inline-flex items-center justify-center rounded-2xl bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-700">
+              New track progress
             </Link>
           )}
         </div>
-      </div>
+      </section>
 
-      {/* Content */}
-      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 pb-10 space-y-8">
+      <div className="mt-5">
         {rows.length === 0 ? (
-          <div className="rounded-3xl bg-white ring-1 ring-neutral-200/70 p-12 text-center">
+          <div className="rounded-3xl bg-white p-12 text-center ring-1 ring-neutral-200/70">
             <p className="text-sm font-medium text-neutral-900">No tracked items yet</p>
-            <p className="mt-1 text-sm text-neutral-400">
+            <p className="mt-2 text-sm text-neutral-500">
               {canCreate
-                ? "Create a track progress workflow to start following a file or letter through each handoff."
-                : "You have no files or letters currently assigned to you in track progress."}
+                ? "Create a track progress flow to start following a file or letter through each handoff."
+                : "There are no files or letters for you in Track Progress right now."}
             </p>
             {canCreate && (
-              <Link
-                href="/pipeline/new"
-                className="mt-5 inline-flex items-center rounded-2xl bg-neutral-900 px-5 py-2.5
-                  text-sm text-white hover:bg-neutral-700 transition-colors"
-              >
+              <Link href="/pipeline/new" className="mt-5 inline-flex items-center rounded-2xl bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-700">
                 Create track progress
               </Link>
             )}

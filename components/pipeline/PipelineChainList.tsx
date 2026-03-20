@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react"
+import { useMemo, useState, useTransition } from "react"
 import Link from "next/link"
 import { passToNext, markDone } from "@/lib/pipeline/actions"
 import type { SlimProfile } from "@/lib/pipeline/types"
@@ -64,23 +64,8 @@ function getCountdown(assignedAt: string | null | undefined) {
     : { label: `${label} left`, tone: "bg-amber-50 text-amber-700" }
 }
 
-function WaitingPopup({ count, onDismiss }: { count: number; onDismiss: () => void }) {
-  return (
-    <div className="fixed bottom-4 right-4 z-50 w-[calc(100vw-2rem)] max-w-sm rounded-2xl bg-white p-4 shadow-lg ring-1 ring-neutral-200/80">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-neutral-900">{count === 1 ? "1 item is waiting for you" : `${count} items are waiting for you`}</p>
-          <p className="mt-1 text-sm text-neutral-500">Your active work appears first below.</p>
-        </div>
-        <button onClick={onDismiss} className="text-neutral-400 hover:text-neutral-700">×</button>
-      </div>
-    </div>
-  )
-}
-
-function ActionPanel({ row, currentUserId, allUsers, onPassed }: { row: PipelineRow; currentUserId: string; allUsers: SlimProfile[]; onPassed: (name: string | null, ref: string) => void }) {
+function ActionPanel({ row, allUsers }: { row: PipelineRow; allUsers: SlimProfile[] }) {
   const activeStep = row.steps.find(step => step.status === "ACTIVE")
-  const isLast = activeStep ? !row.steps.some(step => step.step_order > activeStep.step_order && step.status === "PENDING") : false
   const nextStep = activeStep ? row.steps.find(step => step.step_order > activeStep.step_order && step.status === "PENDING") ?? null : null
   const [remarks, setRemarks] = useState("")
   const [nextUserId, setNextUserId] = useState("")
@@ -101,7 +86,6 @@ function ActionPanel({ row, currentUserId, allUsers, onPassed }: { row: Pipeline
         setError(res.error)
         return
       }
-      if (actionMode === "move" && res.data) onPassed("next_user_name" in res.data ? res.data.next_user_name : null, row.letter.ref_no)
       setOpen(false)
       setRemarks("")
       setNextUserId("")
@@ -112,22 +96,23 @@ function ActionPanel({ row, currentUserId, allUsers, onPassed }: { row: Pipeline
     <div className="mt-4 border-t border-neutral-100 pt-4">
       {!open ? (
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => { setActionMode("move"); setOpen(true) }} className="rounded-2xl bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-700">Move to next person</button>
-          <button type="button" onClick={() => { setActionMode("done"); setOpen(true) }} className="rounded-2xl bg-green-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-800">Mark as done</button>
+          <button type="button" onClick={() => { setActionMode("move"); setOpen(true) }} className="rounded-2xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700">Move to next person</button>
+          <button type="button" onClick={() => { setActionMode("done"); setOpen(true) }} className="rounded-2xl bg-green-700 px-4 py-2 text-sm font-medium text-white hover:bg-green-800">Mark as done</button>
         </div>
       ) : (
-        <div className="max-w-lg rounded-2xl bg-neutral-50 p-4 ring-1 ring-neutral-200/70">
-          <p className="text-sm font-medium text-neutral-900">Optional note</p>
+        <div className="max-w-xl rounded-3xl bg-neutral-50 p-4 ring-1 ring-neutral-200/70">
+          <p className="text-sm font-semibold text-neutral-900">{actionMode === "move" ? "Move to next person" : "Mark as done"}</p>
+          <p className="mt-1 text-sm text-neutral-500">{actionMode === "move" ? `This marks ${activeStep.assigned_user?.full_name ?? "this person"} as done and moves the file forward.` : "This finishes the process."}</p>
           {actionMode === "move" && (!nextStep || !nextStep.assigned_user_id) && (
             <div className="mt-3">
-              <label className="mb-2 block text-xs font-medium text-neutral-500">Choose who should receive the next step</label>
+              <label className="mb-2 block text-xs font-medium text-neutral-500">Choose who should receive it next</label>
               <select value={nextUserId} onChange={e => setNextUserId(e.target.value)} className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-neutral-200">
                 <option value="">Select a person…</option>
                 {allUsers.map(user => <option key={user.id} value={user.id}>{user.full_name}{user.department ? ` — ${user.department}` : ""}</option>)}
               </select>
             </div>
           )}
-          <textarea value={remarks} onChange={e => setRemarks(e.target.value)} rows={3} className="mt-3 w-full rounded-2xl border border-neutral-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-200" placeholder="Add a short note…" />
+          <textarea value={remarks} onChange={e => setRemarks(e.target.value)} rows={3} className="mt-3 w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-200" placeholder="Optional note…" />
           <div className="mt-3 flex flex-wrap gap-2">
             <button type="button" onClick={handleConfirm} disabled={isPending || (actionMode === "move" && !nextStep?.assigned_user_id && !nextUserId)} className="rounded-2xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60">{isPending ? "Saving…" : "Confirm"}</button>
             <button type="button" onClick={() => { setOpen(false); setRemarks(""); setError(null); setNextUserId("") }} className="rounded-2xl border border-neutral-200 px-4 py-2 text-sm text-neutral-600">Cancel</button>
@@ -139,7 +124,7 @@ function ActionPanel({ row, currentUserId, allUsers, onPassed }: { row: Pipeline
   )
 }
 
-function PipelineCard({ row, currentUserId, allUsers, onPassed }: { row: PipelineRow; currentUserId: string; allUsers: SlimProfile[]; onPassed: (name: string | null, ref: string) => void }) {
+function PipelineCard({ row, currentUserId, allUsers }: { row: PipelineRow; currentUserId: string; allUsers: SlimProfile[] }) {
   const active = row.steps.find(step => step.status === "ACTIVE")
   const next = active ? row.steps.find(step => step.step_order > active.step_order && step.status === "PENDING") : null
   const doneCount = row.steps.filter(step => step.status === "DONE").length
@@ -153,68 +138,42 @@ function PipelineCard({ row, currentUserId, allUsers, onPassed }: { row: Pipelin
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-500">
               <span className="font-mono">{row.letter.ref_no}</span>
-              {row.letter.file_name && <span>{row.letter.file_name}</span>}
+              {row.letter.file_name && <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold text-neutral-600">{row.letter.file_name}</span>}
               {isMine && <span className="rounded-full bg-neutral-900 px-2 py-0.5 text-[10px] font-semibold text-white">Your turn</span>}
             </div>
-            <h3 className="mt-1 text-base font-semibold text-neutral-900">{row.letter.subject}</h3>
-            <p className="mt-1 text-sm text-neutral-500">{row.letter.sender_name} · Received {fmtDate(row.letter.date_received)}</p>
+            <h3 className="mt-2 text-lg font-semibold text-neutral-900">{row.letter.subject}</h3>
+            <p className="mt-1 text-sm text-neutral-500">From {row.letter.sender_name} · Received {fmtDate(row.letter.date_received)}</p>
           </div>
-          <span className="text-sm font-medium text-neutral-500 underline underline-offset-2">Open</span>
+          <span className="text-sm font-medium text-neutral-500">Open</span>
         </div>
 
-        <div className="mt-4 rounded-2xl bg-neutral-50 px-4 py-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-400">Now with</p>
-              <p className="mt-1 text-lg font-semibold text-neutral-900">{active?.assigned_user?.full_name ?? "Completed"}</p>
-              <p className="mt-1 text-sm text-neutral-500">{active?.title ?? "All steps completed"}</p>
-            </div>
-            <div className="text-right text-sm text-neutral-500">
-              <p>{active?.assigned_at ? `Since ${fmtDateTime(active.assigned_at)}` : row.completed_at ? `Completed ${fmtDateTime(row.completed_at)}` : "—"}</p>
-              {countdown && <p className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${countdown.tone}`}>{countdown.label}</p>}
-            </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl bg-neutral-50 px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">Now with</p>
+            <p className="mt-1 text-sm font-semibold text-neutral-900">{active?.assigned_user?.full_name ?? "Completed"}</p>
+            <p className="mt-1 text-xs text-neutral-500">{active?.assigned_at ? `Since ${fmtDateTime(active.assigned_at)}` : row.completed_at ? `Completed ${fmtDateTime(row.completed_at)}` : "—"}</p>
           </div>
-
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-400">Next</p>
-              <p className="mt-1 text-sm font-medium text-neutral-900">{next?.assigned_user?.full_name ?? (next ? "Choose when handing over" : "Final / done")}</p>
-              <p className="mt-1 text-xs text-neutral-500">{next?.title ?? "No pending next step"}</p>
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-400">Progress</p>
-              <p className="mt-1 text-sm font-medium text-neutral-900">{doneCount}/{row.steps.length} steps done</p>
-            </div>
+          <div className="rounded-2xl bg-neutral-50 px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">Next</p>
+            <p className="mt-1 text-sm font-semibold text-neutral-900">{next?.assigned_user?.full_name ?? (next ? "Choose when moving" : "Final step")}</p>
+            <p className="mt-1 text-xs text-neutral-500">{next?.title ?? "No next step"}</p>
           </div>
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          {row.steps.map(step => (
-            <div key={step.id} className={`rounded-full px-3 py-1 text-xs ${step.status === "DONE" ? "bg-green-50 text-green-700" : step.status === "ACTIVE" ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-500"}`}>
-              {step.step_order}. {step.assigned_user?.full_name?.split(" ")[0] ?? "Pending"}
-            </div>
-          ))}
+          <div className="rounded-2xl bg-neutral-50 px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">Progress</p>
+            <p className="mt-1 text-sm font-semibold text-neutral-900">{doneCount} / {row.steps.length} done</p>
+            {countdown && <p className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${countdown.tone}`}>{countdown.label}</p>}
+          </div>
         </div>
       </Link>
 
-      <ActionPanel row={row} currentUserId={currentUserId} allUsers={allUsers} onPassed={onPassed} />
+      <ActionPanel row={row} allUsers={allUsers} />
     </article>
   )
 }
 
 export function PipelineChainList({ myRows, otherRows, currentUserId, allUsers }: Props) {
-  const [showWaiting, setShowWaiting] = useState(false)
   const [query, setQuery] = useState("")
-  const mountedRef = useRef(false)
-
-  useEffect(() => {
-    if (mountedRef.current) return
-    mountedRef.current = true
-    if (myRows.length > 0) {
-      const t = setTimeout(() => setShowWaiting(true), 1000)
-      return () => clearTimeout(t)
-    }
-  }, [myRows.length])
+  const [view, setView] = useState<"mine" | "all">(myRows.length > 0 ? "mine" : "all")
 
   const allRows = useMemo(() => [...myRows, ...otherRows], [myRows, otherRows])
   const filteredRows = useMemo(() => {
@@ -224,39 +183,52 @@ export function PipelineChainList({ myRows, otherRows, currentUserId, allUsers }
   }, [allRows, query])
   const myIds = new Set(myRows.map(row => row.pipeline_id))
   const mine = filteredRows.filter(row => myIds.has(row.pipeline_id))
-  const others = filteredRows.filter(row => !myIds.has(row.pipeline_id))
-
-  const handlePassed = useCallback(() => {}, [])
+  const visibleRows = view === "mine" ? mine : filteredRows
 
   return (
-    <>
-      {showWaiting && myRows.length > 0 && <WaitingPopup count={myRows.length} onDismiss={() => setShowWaiting(false)} />}
-
+    <div className="space-y-5">
       <section className="rounded-3xl bg-white p-5 ring-1 ring-neutral-200/70">
-        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search by reference, file name, subject, or current holder…" className="w-full rounded-2xl border border-neutral-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-200" />
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search by reference, file name, subject, or current holder…" className="w-full rounded-2xl border border-neutral-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-200" />
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => setView("mine")} className={`rounded-2xl px-4 py-2 text-sm font-medium transition ${view === "mine" ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"}`}>Waiting for you ({mine.length})</button>
+            <button type="button" onClick={() => setView("all")} className={`rounded-2xl px-4 py-2 text-sm font-medium transition ${view === "all" ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"}`}>All items ({filteredRows.length})</button>
+          </div>
+        </div>
       </section>
 
-      <div className="space-y-6">
-        {mine.length > 0 && (
-          <section>
-            <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">Waiting for you</h2>
-            <div className="space-y-4">
-              {mine.map(row => <PipelineCard key={row.pipeline_id} row={row} currentUserId={currentUserId} allUsers={allUsers} onPassed={handlePassed} />)}
-            </div>
-          </section>
-        )}
+      <section className="rounded-3xl bg-white p-5 ring-1 ring-neutral-200/70">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl bg-neutral-50 px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">Waiting for you</p>
+            <p className="mt-1 text-2xl font-semibold text-neutral-900">{mine.length}</p>
+          </div>
+          <div className="rounded-2xl bg-neutral-50 px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">All tracked</p>
+            <p className="mt-1 text-2xl font-semibold text-neutral-900">{allRows.length}</p>
+          </div>
+          <div className="rounded-2xl bg-neutral-50 px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">Completed</p>
+            <p className="mt-1 text-2xl font-semibold text-neutral-900">{allRows.filter(row => row.pipeline_status === "COMPLETED").length}</p>
+          </div>
+        </div>
+      </section>
 
-        {others.length > 0 && (
-          <section>
-            <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">All items</h2>
-            <div className="space-y-4">
-              {others.map(row => <PipelineCard key={row.pipeline_id} row={row} currentUserId={currentUserId} allUsers={allUsers} onPassed={handlePassed} />)}
-            </div>
-          </section>
+      <section>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-neutral-900">{view === "mine" ? "Items waiting for you" : "All tracked items"}</h2>
+          <p className="text-xs text-neutral-400">Tap any item to see full details.</p>
+        </div>
+        {visibleRows.length === 0 ? (
+          <div className="rounded-3xl bg-white p-10 text-center ring-1 ring-neutral-200/70">
+            <p className="text-sm text-neutral-500">No tracked items found.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {visibleRows.map(row => <PipelineCard key={row.pipeline_id} row={row} currentUserId={currentUserId} allUsers={allUsers} />)}
+          </div>
         )}
-
-        {filteredRows.length === 0 && <div className="rounded-3xl bg-white p-10 text-center ring-1 ring-neutral-200/70"><p className="text-sm text-neutral-500">No tracked items found.</p></div>}
-      </div>
-    </>
+      </section>
+    </div>
   )
 }
