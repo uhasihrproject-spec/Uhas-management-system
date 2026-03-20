@@ -9,14 +9,20 @@ export default function TopLoader() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    // show loader on route change
     setShow(true);
-
-    // hide after a short moment (feels real + not annoying)
-    const t = setTimeout(() => setShow(false), 450);
+    const t = setTimeout(() => setShow(false), 650);
     return () => clearTimeout(t);
   }, [pathname, sp]);
 
   if (!show) return null;
-  return <div className="toploader" />;
+
+  return (
+    <div className="toploader-shell" aria-hidden="true">
+      <div className="toploader-track">
+        <span className="toploader-dot dot-a" />
+        <span className="toploader-dot dot-b" />
+        <span className="toploader-dot dot-c" />
+      </div>
+    </div>
+  );
 }

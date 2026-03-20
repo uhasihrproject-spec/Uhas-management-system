@@ -1,5 +1,6 @@
 // app/letters/[id]/page.tsx
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import LetterViewer from "./LetterViewer";
@@ -112,6 +113,8 @@ export default async function LetterDetailsPage({
       },
     ]);
   }
+
+  if (Array.isArray(letter.tags) && letter.tags.includes("manual-file")) notFound();
 
   const canEdit = access.role === "ADMIN" || access.role === "SECRETARY";
 

@@ -16,8 +16,12 @@ const SELECT_COLUMNS =
   "id,ref_no,direction,date_received,sender_name,recipient_department,subject,status,confidentiality,created_at";
 const MAX_ROWS = 300;
 
+function excludeManualTracked(query: any) {
+  return query.not("tags", "cs", '{"manual-file"}')
+}
+
 function applyFilters(query: any, params: { q: string; direction: string; status: string; conf: string; year: string }) {
-  let q = query.order("created_at", { ascending: false }).limit(MAX_ROWS);
+  let q = excludeManualTracked(query).order("created_at", { ascending: false }).limit(MAX_ROWS);
 
   if (params.direction) q = q.eq("direction", params.direction);
   if (params.status) q = q.eq("status", params.status);
@@ -95,12 +99,12 @@ export default async function LettersPage({
     year: normalizeYear(sp.year, currentYear),
   };
 
-  const { data: oldestYearRow } = await admin
+  const { data: oldestYearRow } = await excludeManualTracked(admin
     .from("letters")
     .select("date_received")
     .order("date_received", { ascending: true })
     .limit(1)
-    .maybeSingle();
+    .maybeSingle());
 
   const startYear = oldestYearRow?.date_received
     ? Number(String(oldestYearRow.date_received).slice(0, 4)) || currentYear
