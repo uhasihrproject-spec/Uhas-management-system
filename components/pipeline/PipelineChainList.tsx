@@ -84,6 +84,7 @@ function ActionPanel({ row, currentUserId, allUsers, onPassed }: { row: Pipeline
   const nextStep = activeStep ? row.steps.find(step => step.step_order > activeStep.step_order && step.status === "PENDING") ?? null : null
   const [remarks, setRemarks] = useState("")
   const [nextUserId, setNextUserId] = useState("")
+  const [actionMode, setActionMode] = useState<"move" | "done">("move")
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -93,14 +94,14 @@ function ActionPanel({ row, currentUserId, allUsers, onPassed }: { row: Pipeline
   const handleConfirm = () => {
     setError(null)
     startTransition(async () => {
-      const res = isLast
+      const res = actionMode === "done"
         ? await markDone({ pipeline_id: row.pipeline_id, step_id: activeStep.id, remarks: remarks || undefined })
         : await passToNext({ pipeline_id: row.pipeline_id, step_id: activeStep.id, remarks: remarks || undefined, next_user_id: nextStep?.assigned_user_id ? undefined : nextUserId || undefined })
       if (!res.ok) {
         setError(res.error)
         return
       }
-      if (!isLast && res.data) onPassed("next_user_name" in res.data ? res.data.next_user_name : null, row.letter.ref_no)
+      if (actionMode === "move" && res.data) onPassed("next_user_name" in res.data ? res.data.next_user_name : null, row.letter.ref_no)
       setOpen(false)
       setRemarks("")
       setNextUserId("")
@@ -110,13 +111,14 @@ function ActionPanel({ row, currentUserId, allUsers, onPassed }: { row: Pipeline
   return (
     <div className="mt-4 border-t border-neutral-100 pt-4">
       {!open ? (
-        <button type="button" onClick={() => setOpen(true)} className={`rounded-2xl px-4 py-2.5 text-sm font-medium text-white ${isLast ? "bg-green-700 hover:bg-green-800" : "bg-neutral-900 hover:bg-neutral-700"}`}>
-          {isLast ? "Mark as done" : "Move to next person"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => { setActionMode("move"); setOpen(true) }} className="rounded-2xl bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-700">Move to next person</button>
+          <button type="button" onClick={() => { setActionMode("done"); setOpen(true) }} className="rounded-2xl bg-green-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-800">Mark as done</button>
+        </div>
       ) : (
         <div className="max-w-lg rounded-2xl bg-neutral-50 p-4 ring-1 ring-neutral-200/70">
           <p className="text-sm font-medium text-neutral-900">Optional note</p>
-          {!isLast && nextStep && !nextStep.assigned_user_id && (
+          {actionMode === "move" && (!nextStep || !nextStep.assigned_user_id) && (
             <div className="mt-3">
               <label className="mb-2 block text-xs font-medium text-neutral-500">Choose who should receive the next step</label>
               <select value={nextUserId} onChange={e => setNextUserId(e.target.value)} className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-neutral-200">
@@ -127,7 +129,7 @@ function ActionPanel({ row, currentUserId, allUsers, onPassed }: { row: Pipeline
           )}
           <textarea value={remarks} onChange={e => setRemarks(e.target.value)} rows={3} className="mt-3 w-full rounded-2xl border border-neutral-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-200" placeholder="Add a short note…" />
           <div className="mt-3 flex flex-wrap gap-2">
-            <button type="button" onClick={handleConfirm} disabled={isPending || (!isLast && !!nextStep && !nextStep.assigned_user_id && !nextUserId)} className="rounded-2xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60">{isPending ? "Saving…" : "Confirm"}</button>
+            <button type="button" onClick={handleConfirm} disabled={isPending || (actionMode === "move" && !nextStep?.assigned_user_id && !nextUserId)} className="rounded-2xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60">{isPending ? "Saving…" : "Confirm"}</button>
             <button type="button" onClick={() => { setOpen(false); setRemarks(""); setError(null); setNextUserId("") }} className="rounded-2xl border border-neutral-200 px-4 py-2 text-sm text-neutral-600">Cancel</button>
           </div>
           {error && <p className="mt-2 text-sm text-red-600">{error}</p>}

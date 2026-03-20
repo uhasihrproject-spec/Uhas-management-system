@@ -295,15 +295,18 @@ export async function passToNext(
     ) ?? null
 
     let nextAssignedUserId = nextStep?.assigned_user_id ?? null
+    const requestedNextUserId = input.next_user_id ?? null
+    let nextStepId = nextStep?.id ?? null
+    let nextStepOrder = nextStep?.step_order ?? null
+
     if (nextStep && !nextAssignedUserId) {
-      nextAssignedUserId = input.next_user_id ?? null
+      nextAssignedUserId = requestedNextUserId
       if (!nextAssignedUserId)
         return { ok: false, error: "Select who should receive the next step first." }
     }
 
-    // Prevent "Pass to Next" on the final step — use markDone instead
-    if (!nextStep)
-      return { ok: false, error: "This is the final step. Use Mark as Done instead." }
+    if (!nextStep && !requestedNextUserId)
+      return { ok: false, error: "Select who should receive this next, or mark the workflow as done." }
 
     const now = new Date().toISOString()
 
@@ -312,17 +315,46 @@ export async function passToNext(
       .update({ status: "DONE", completed_at: now, completed_by: actor.id, remarks: input.remarks ?? null, updated_at: now })
       .eq("id", input.step_id)
 
-    await admin
-      .from("letter_pipeline_steps")
-      .update({ status: "ACTIVE", assigned_at: now, assigned_user_id: nextAssignedUserId, updated_at: now })
-      .eq("id", nextStep.id)
+    if (nextStep) {
+      await admin
+        .from("letter_pipeline_steps")
+        .update({ status: "ACTIVE", assigned_at: now, assigned_user_id: nextAssignedUserId, updated_at: now })
+        .eq("id", nextStep.id)
+    } else {
+      const { data: nextUserProfile } = await admin
+        .from("profiles")
+        .select("department")
+        .eq("id", requestedNextUserId)
+        .single()
+
+      const { data: createdNextStep, error: createNextStepError } = await admin
+        .from("letter_pipeline_steps")
+        .insert({
+          pipeline_id: input.pipeline_id,
+          step_order: step.step_order + 1,
+          title: "Continued handling",
+          action_note: "Added during handoff.",
+          assigned_user_id: requestedNextUserId,
+          assigned_department: nextUserProfile?.department ?? null,
+          status: "ACTIVE",
+          assigned_at: now,
+        })
+        .select("id, step_order")
+        .single()
+
+      if (createNextStepError || !createdNextStep)
+        return { ok: false, error: createNextStepError?.message || "Failed to create the next step." }
+
+      nextAssignedUserId = requestedNextUserId
+      nextStepId = createdNextStep.id
+      nextStepOrder = createdNextStep.step_order
+    }
 
     await admin
       .from("letter_pipelines")
-      .update({ current_step_order: nextStep.step_order, updated_at: now })
+      .update({ current_step_order: nextStepOrder, updated_at: now })
       .eq("id", input.pipeline_id)
 
-    // Fetch next user name to show in the popup
     let nextUserName: string | null = null
     if (nextAssignedUserId) {
       const { data: nextUser } = await admin
@@ -345,8 +377,8 @@ export async function passToNext(
 
     await audit(pipeline.letter_id, actor.id, "PIPELINE_STEP_ACTIVATED", {
       pipeline_id: input.pipeline_id,
-      step_id:     nextStep.id,
-      step_order:  nextStep.step_order,
+      step_id:     nextStepId,
+      step_order:  nextStepOrder,
       to_user_id:  nextAssignedUserId,
     })
 

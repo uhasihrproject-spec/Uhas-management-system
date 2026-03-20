@@ -86,6 +86,7 @@ function StepRow({ step, isLast, isMine, nextPendingStep, canManage, allUsers, p
   const [remarks, setRemarks] = useState("")
   const [reassignId, setReassignId] = useState("")
   const [nextUserId, setNextUserId] = useState("")
+  const [actionMode, setActionMode] = useState<"move" | "done">("move")
   const [err, setErr] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const deadline = step.status === "ACTIVE" ? getDeadlineMeta(step.assigned_at) : null
@@ -93,8 +94,8 @@ function StepRow({ step, isLast, isMine, nextPendingStep, canManage, allUsers, p
   const handlePassToNext = () => {
     setErr(null)
     startTransition(async () => {
-      const res = nextPendingStep
-        ? await passToNext({ pipeline_id: pipelineId, step_id: step.id, remarks: remarks || undefined, next_user_id: nextPendingStep.assigned_user_id ? undefined : nextUserId || undefined })
+      const res = actionMode === "move"
+        ? await passToNext({ pipeline_id: pipelineId, step_id: step.id, remarks: remarks || undefined, next_user_id: nextPendingStep?.assigned_user_id ? undefined : nextUserId || undefined })
         : await markDone({ pipeline_id: pipelineId, step_id: step.id, remarks: remarks || undefined })
       if (!res.ok) {
         setErr(res.error)
@@ -103,8 +104,8 @@ function StepRow({ step, isLast, isMine, nextPendingStep, canManage, allUsers, p
       setShowAction(false)
       setRemarks("")
       setNextUserId("")
-      const nextUserName = nextPendingStep && res.data && "next_user_name" in res.data ? res.data.next_user_name : null
-      onToast(nextPendingStep ? (nextUserName ? `Moved to ${nextUserName}.` : "Moved to the next person.") : "Final step completed.")
+      const nextUserName = actionMode === "move" && res.data && "next_user_name" in res.data ? res.data.next_user_name : null
+      onToast(actionMode === "move" ? (nextUserName ? `Moved to ${nextUserName}.` : "Moved to the next person.") : "Final step completed.")
     })
   }
 
@@ -125,7 +126,6 @@ function StepRow({ step, isLast, isMine, nextPendingStep, canManage, allUsers, p
 
   const nodeCls = step.status === "DONE" ? "bg-green-50 border-green-300 text-green-700" : step.status === "ACTIVE" ? "bg-neutral-900 border-neutral-900 text-white" : "bg-neutral-100 border-neutral-200 text-neutral-400"
   const lineCls = step.status === "DONE" ? "bg-green-200" : "bg-neutral-200"
-  const actionLabel = nextPendingStep ? "Move to next person" : "Mark as done"
 
   return (
     <div className="relative flex gap-0" id={`step-${step.id}`}>
@@ -157,15 +157,16 @@ function StepRow({ step, isLast, isMine, nextPendingStep, canManage, allUsers, p
 
           {step.status === "ACTIVE" && !showAction && !showReassign && (
             <div className="mt-3 flex flex-wrap gap-2">
-              <button onClick={() => setShowAction(true)} className={`rounded-2xl px-4 py-2 text-sm font-medium text-white transition ${nextPendingStep ? "bg-neutral-900 hover:bg-neutral-700" : "bg-green-700 hover:bg-green-800"}`}>{actionLabel}</button>
+              <button onClick={() => { setActionMode("move"); setShowAction(true) }} className="rounded-2xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700">Move to next person</button>
+              <button onClick={() => { setActionMode("done"); setShowAction(true) }} className="rounded-2xl bg-green-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-green-800">Mark as done</button>
             </div>
           )}
 
           {showAction && (
             <div className="mt-3 max-w-lg rounded-3xl border border-neutral-200 bg-neutral-50 p-4">
               <p className="text-sm font-semibold text-neutral-900">Confirm this step</p>
-              <p className="mt-1 text-xs text-neutral-500">{nextPendingStep ? "This marks your step as done and moves the file to the next person in the chain." : "This finishes the workflow and marks the item completed."}</p>
-              {nextPendingStep && !nextPendingStep.assigned_user_id && (
+              <p className="mt-1 text-xs text-neutral-500">{actionMode === "move" ? (nextPendingStep ? "This marks your step as done and moves the file to the next person in the chain." : "This marks your step as done and lets you choose the next person even though no later step was preassigned.") : "This finishes the workflow and marks the item completed."}</p>
+              {actionMode === "move" && (!nextPendingStep || !nextPendingStep.assigned_user_id) && (
                 <div className="mt-3">
                   <label className="mb-2 block text-xs font-medium text-neutral-500">Choose who should receive the next step</label>
                   <select value={nextUserId} onChange={e => setNextUserId(e.target.value)} className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-neutral-200">
@@ -176,7 +177,7 @@ function StepRow({ step, isLast, isMine, nextPendingStep, canManage, allUsers, p
               )}
               <textarea value={remarks} onChange={e => setRemarks(e.target.value)} rows={3} className="mt-3 w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-neutral-200" placeholder="Optional note…" />
               <div className="mt-3 flex flex-wrap gap-2">
-                <button onClick={handlePassToNext} disabled={isPending || (!!nextPendingStep && !nextPendingStep.assigned_user_id && !nextUserId)} className="rounded-2xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50">{isPending ? "Processing…" : "Confirm"}</button>
+                <button onClick={handlePassToNext} disabled={isPending || (actionMode === "move" && !nextPendingStep?.assigned_user_id && !nextUserId)} className="rounded-2xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50">{isPending ? "Processing…" : "Confirm"}</button>
                 <button onClick={() => { setShowAction(false); setRemarks(""); setErr(null); setNextUserId("") }} className="rounded-2xl border border-neutral-200 px-4 py-2 text-sm text-neutral-600 transition hover:bg-white">Cancel</button>
               </div>
             </div>
