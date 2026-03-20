@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import MobileNav from "./MobileNav";
+import GlobalTrackReminder from "./GlobalTrackReminder";
 import type { ReactNode } from "react";
 
 // ─── Route helper ─────────────────────────────────────────────────────────────
@@ -198,6 +199,7 @@ export default function AppShell({
   return (
     <div className="min-h-screen">
       <MobileNav userEmail={userEmail} role={role} userName={userName} />
+      <GlobalTrackReminder />
 
       <div className="lg:flex lg:h-screen">
 

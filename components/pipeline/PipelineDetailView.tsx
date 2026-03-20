@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react"
 import Link from "next/link"
-import { WorkReminder } from "./WorkReminder"
 import { StatusBadge } from "./StatusBadge"
 import { passToNext, markDone, reassignStep, cancelPipeline } from "@/lib/pipeline/actions"
 import type { Pipeline, LetterSummary, SlimProfile, PipelineStep } from "@/lib/pipeline/types"
@@ -251,7 +250,6 @@ export function PipelineDetailView({ pipeline, letter, currentUser, auditLog, al
   return (
     <div className="w-full min-w-0">
       {toast && <Toast msg={toast} />}
-      <WorkReminder pipeline={pipeline} currentUserId={currentUser.id} letterRefNo={letter.ref_no} />
 
       <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
         <p className="mb-6 text-xs text-neutral-400">
